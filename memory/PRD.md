@@ -39,3 +39,4 @@ Event registration system for ROAR Saifee Burhani Business Expo (Nagpur, Jan 202
 - 2026-06: Verified visitor + exhibitor registration end-to-end (iteration_2: backend 12/12, frontend visitor E2E). Email send confirmed non-blocking.
 - 2026-06: Fixed hero ROAR logo centering (display:block + auto margins) — verified 0px offset (iteration_3).
 - 2026-06: Added floating WhatsApp button on all public pages linking to wa.me/919284182675 — verified (iteration_3).
+- 2026-06: EMAIL NOW WORKING — Gmail App Password for mkt@roarexpo.com accepted (SMTP login OK, test email delivered). Verified live visitor (QR ID card) + exhibitor (confirmation) registrations send email with no emailError. roarexpo.com confirmed on Google Workspace (MX=google).
