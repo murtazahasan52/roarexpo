@@ -1,0 +1,571 @@
+"""
+Port of routes/admin.js + controllers/adminController.js + the admin half of
+controllers/stallController.js. One router, mirroring the old Express
+router's structure/comments closely so the permission model (see
+middleware/auth.py) stays easy to audit against the original.
+"""
+import csv
+import io
+import os
+import base64
+from datetime import datetime
+
+import qrcode
+from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from config.db import get_db
+from config.event_config import EVENT
+from middleware.auth import (
+    AdminPayload, require_admin, require_any_resource, require_full_access, require_resource, sign_token,
+)
+from middleware.rate_limit import rate_limit
+from middleware.upload import STALL_MAP_MAX_BYTES, save_upload
+from models.admin import PERMISSIONS, AdminCreateRequest, AdminLoginRequest
+from models.common import serialize_doc, serialize_list, to_object_id, utcnow
+from models.exhibitor import EDITABLE_EXHIBITOR_FIELDS, EXHIBITOR_CSV_COLUMNS
+from models.stall import STALL_STATUS_VALUES, new_stall_document
+from models.stall_map import new_stall_map_document
+from models.visitor import VISITOR_CSV_COLUMNS
+from utils.email_templates import exhibitor_approved_email_html
+from utils.hashing import hash_password, verify_password
+from utils.invoice import build_exhibitor_invoice_pdf
+from utils.mailer import send_mail
+from utils.whatsapp import send_whatsapp
+
+router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+_login_limiter = rate_limit(
+    "admin-login", max_requests=20, window_seconds=15 * 60,
+    message="Too many login attempts. Please try again later.",
+)
+
+
+# ---------- Auth ----------
+
+@router.post("/login", dependencies=[Depends(_login_limiter)])
+async def login(payload: AdminLoginRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
+    if not payload.email or not payload.password:
+        raise HTTPException(status_code=400, detail="Email and password are required")
+
+    admin = await db.admins.find_one({"email": payload.email.lower().strip()})
+    if not admin:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not verify_password(payload.password, admin["passwordHash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = sign_token(admin)
+    return {
+        "success": True,
+        "token": token,
+        "admin": {"name": admin["name"], "email": admin["email"], "permissions": admin.get("permissions", [])},
+    }
+
+
+@router.get("/stats")
+async def stats(admin: AdminPayload = Depends(require_admin), db: AsyncIOMotorDatabase = Depends(get_db)):
+    permissions = admin.get("permissions") or []
+    is_all = "all" in permissions
+    can_see_exhibitors = is_all or "exhibitors" in permissions or "invoicing" in permissions
+    can_see_visitors = is_all or "visitors" in permissions
+    can_see_checked_in = can_see_visitors or "scanning" in permissions
+
+    exhibitor_count = await db.exhibitors.count_documents({}) if can_see_exhibitors else 0
+    visitor_count = await db.visitors.count_documents({}) if can_see_visitors else 0
+    checked_in_count = await db.visitors.count_documents({"checkedIn": True}) if can_see_checked_in else 0
+
+    return {"success": True, "data": {
+        "exhibitorCount": exhibitor_count, "visitorCount": visitor_count, "checkedInCount": checked_in_count,
+    }}
+
+
+def _search_query(search: str, fields: list[str]) -> dict:
+    if not search:
+        return {}
+    return {"$or": [{f: {"$regex": search.strip(), "$options": "i"}} for f in fields]}
+
+
+def _to_csv(rows: list[dict], columns: list[str]) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf, quoting=csv.QUOTE_ALL, lineterminator="\n")
+    writer.writerow(columns)
+    for row in rows:
+        line = []
+        for col in columns:
+            val = row.get(col, "")
+            if val is None:
+                val = ""
+            elif isinstance(val, list):
+                val = "; ".join(str(v) for v in val)
+            elif isinstance(val, datetime):
+                val = serialize_doc({"v": val})["v"]
+            line.append(str(val))
+        writer.writerow(line)
+    return buf.getvalue()
+
+
+# ---------- Exhibitors ----------
+
+@router.get("/exhibitors")
+async def list_exhibitors(
+    search: str = "", page: int = 1, limit: int = 25,
+    admin: AdminPayload = Depends(require_any_resource(["exhibitors", "invoicing"])),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    query = _search_query(search, ["companyName", "contactPerson", "email", "phone", "registrationCode"])
+    skip = (page - 1) * limit
+    total = await db.exhibitors.count_documents(query)
+    items = await db.exhibitors.find(query).sort("createdAt", -1).skip(skip).limit(limit).to_list(length=None)
+    return {"success": True, "data": serialize_list(items), "total": total, "page": page, "limit": limit}
+
+
+@router.get("/exhibitors/export")
+async def export_exhibitors_csv(
+    admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    items = await db.exhibitors.find().sort("createdAt", -1).to_list(length=None)
+    csv_text = _to_csv(items, EXHIBITOR_CSV_COLUMNS)
+    return Response(
+        content=csv_text, media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=exhibitors.csv"},
+    )
+
+
+@router.patch("/exhibitors/{id}")
+async def edit_exhibitor(
+    id: str, payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    if not oid:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+    exhibitor = await db.exhibitors.find_one({"_id": oid})
+    if not exhibitor:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+
+    updates = {}
+    for field in EDITABLE_EXHIBITOR_FIELDS:
+        if field in payload and payload[field] is not None:
+            updates[field] = payload[field]
+
+    # Stall reassignment: only touched if `stallNumber` was included in the
+    # request body and differs from what the exhibitor currently holds.
+    if "stallNumber" in payload:
+        requested_stall_number = str(payload.get("stallNumber") or "").strip().upper()
+        current_stall_number = exhibitor.get("stallNumber") or ""
+
+        if requested_stall_number != current_stall_number:
+            previous_stall_id = exhibitor.get("stallId")
+
+            if not requested_stall_number:
+                # Admin cleared the stall assignment entirely.
+                updates["stallNumber"] = ""
+                updates["stallId"] = None
+                updates["stallRate"] = None
+            else:
+                new_stall = await db.stalls.find_one({"stallNumber": requested_stall_number})
+                if not new_stall:
+                    raise HTTPException(status_code=404, detail="That stall could not be found.")
+
+                claim_status = "booked" if exhibitor.get("status") == "confirmed" else "held"
+                set_fields = {
+                    "status": claim_status,
+                    "heldBy": oid if claim_status == "held" else None,
+                    "bookedBy": oid if claim_status == "booked" else None,
+                }
+                claimed = await db.stalls.find_one_and_update(
+                    {"_id": new_stall["_id"], "status": "available"}, {"$set": set_fields}, return_document=True,
+                )
+                if not claimed:
+                    raise HTTPException(status_code=409, detail="That stall is not available.")
+
+                updates["stallNumber"] = new_stall["stallNumber"]
+                updates["stallId"] = new_stall["_id"]
+                updates["stallRate"] = new_stall["rate"]
+
+            # Release the previously-held stall only after the new one (if
+            # any) was successfully claimed, so a failed reassignment never
+            # strands the exhibitor without the stall they already had.
+            new_stall_id = updates.get("stallId")
+            if previous_stall_id and str(previous_stall_id) != str(new_stall_id):
+                await db.stalls.update_one(
+                    {"_id": previous_stall_id}, {"$set": {"status": "available", "heldBy": None, "bookedBy": None}},
+                )
+
+    if updates:
+        updates["updatedAt"] = utcnow()
+        await db.exhibitors.update_one({"_id": oid}, {"$set": updates})
+
+    updated = await db.exhibitors.find_one({"_id": oid})
+    return {"success": True, "message": "Exhibitor updated", "data": serialize_doc(updated)}
+
+
+@router.post("/exhibitors/{id}/approve")
+async def approve_exhibitor(
+    id: str, admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    exhibitor = await db.exhibitors.find_one({"_id": oid}) if oid else None
+    if not exhibitor:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+    if exhibitor["status"] == "confirmed":
+        return {"success": True, "message": "Already confirmed", "data": serialize_doc(exhibitor)}
+
+    await db.exhibitors.update_one({"_id": oid}, {"$set": {"status": "confirmed", "updatedAt": utcnow()}})
+
+    if exhibitor.get("stallId"):
+        await db.stalls.update_one(
+            {"_id": exhibitor["stallId"]}, {"$set": {"status": "booked", "bookedBy": oid, "heldBy": None}},
+        )
+
+    try:
+        await send_mail(
+            to=exhibitor["email"],
+            subject=f"Stall Confirmed — ROAR Expo ({exhibitor['registrationCode']})",
+            html=exhibitor_approved_email_html(exhibitor),
+        )
+    except Exception as mail_err:  # noqa: BLE001
+        print("[admin] Failed to send approval email:", mail_err)
+
+    try:
+        stall_line = f" Your stall number is {exhibitor['stallNumber']}." if exhibitor.get("stallNumber") else ""
+        result_wa = await send_whatsapp(
+            to=exhibitor.get("whatsapp") or exhibitor["phone"],
+            caption=(
+                f"Good news! Your stall for {EVENT['eventName']} is confirmed.{stall_line} "
+                f"Registration ID: {exhibitor['registrationCode']}."
+            ),
+        )
+        await db.exhibitors.update_one(
+            {"_id": oid},
+            {"$set": {
+                "whatsappSent": bool(result_wa.get("sent")),
+                "whatsappError": "" if result_wa.get("sent") else (result_wa.get("reason") or ""),
+            }},
+        )
+    except Exception as wa_err:  # noqa: BLE001
+        print("[admin] Failed to send approval WhatsApp message:", wa_err)
+
+    updated = await db.exhibitors.find_one({"_id": oid})
+    return {"success": True, "message": "Exhibitor approved", "data": serialize_doc(updated)}
+
+
+@router.post("/exhibitors/{id}/reject")
+async def reject_exhibitor(
+    id: str, admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    exhibitor = await db.exhibitors.find_one({"_id": oid}) if oid else None
+    if not exhibitor:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+
+    await db.exhibitors.update_one({"_id": oid}, {"$set": {"status": "cancelled", "updatedAt": utcnow()}})
+
+    if exhibitor.get("stallId"):
+        await db.stalls.update_one(
+            {"_id": exhibitor["stallId"]}, {"$set": {"status": "available", "heldBy": None, "bookedBy": None}},
+        )
+
+    updated = await db.exhibitors.find_one({"_id": oid})
+    return {"success": True, "message": "Exhibitor rejected and stall released", "data": serialize_doc(updated)}
+
+
+@router.get("/exhibitors/{id}/invoice")
+async def exhibitor_invoice(
+    id: str,
+    admin: AdminPayload = Depends(require_any_resource(["invoicing", "exhibitors"])),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    exhibitor = await db.exhibitors.find_one({"_id": oid}) if oid else None
+    if not exhibitor:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+
+    pdf_bytes = build_exhibitor_invoice_pdf(exhibitor)
+    return Response(
+        content=pdf_bytes, media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename=ROAR-Expo-Booking-Summary-{exhibitor['registrationCode']}.pdf"},
+    )
+
+
+# ---------- Stalls & Map ----------
+
+async def _populate_holders(db: AsyncIOMotorDatabase, stalls: list[dict]) -> list[dict]:
+    ids = {s[field] for s in stalls for field in ("heldBy", "bookedBy") if s.get(field)}
+    if not ids:
+        return stalls
+    exhibitors = await db.exhibitors.find(
+        {"_id": {"$in": list(ids)}}, {"companyName": 1, "contactPerson": 1, "registrationCode": 1},
+    ).to_list(length=None)
+    by_id = {e["_id"]: e for e in exhibitors}
+    for s in stalls:
+        for field in ("heldBy", "bookedBy"):
+            if s.get(field) and s[field] in by_id:
+                s[field] = by_id[s[field]]
+    return stalls
+
+
+@router.get("/stalls")
+async def list_all_stalls(
+    admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    stalls = await db.stalls.find().sort("stallNumber", 1).to_list(length=None)
+    stalls = await _populate_holders(db, stalls)
+    return {"success": True, "data": serialize_list(stalls)}
+
+
+@router.post("/stalls")
+async def create_stalls(
+    payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    stalls_in = payload.get("stalls")
+    if not isinstance(stalls_in, list) or len(stalls_in) == 0:
+        raise HTTPException(status_code=400, detail="Provide a non-empty 'stalls' array")
+
+    cleaned = []
+    for s in stalls_in:
+        stall_number = str(s.get("stallNumber") or "").strip().upper()
+        package_code = str(s.get("packageCode") or "").strip()
+        try:
+            rate = float(s.get("rate"))
+        except (TypeError, ValueError):
+            rate = float("nan")
+        if not stall_number or not package_code or rate != rate or rate < 0:  # rate != rate catches NaN
+            raise HTTPException(
+                status_code=400,
+                detail=f"Each stall needs a stallNumber, packageCode, and a valid rate (problem entry: {s})",
+            )
+        cleaned.append({"stallNumber": stall_number, "packageCode": package_code, "rate": rate, "size": s.get("size") or ""})
+
+    created = []
+    skipped = []
+    for s in cleaned:
+        existing = await db.stalls.find_one({"stallNumber": s["stallNumber"]})
+        if existing:
+            skipped.append(s["stallNumber"])
+            continue
+        doc = new_stall_document(s["stallNumber"], s["packageCode"], s["rate"], s["size"])
+        result = await db.stalls.insert_one(doc)
+        doc["_id"] = result.inserted_id
+        created.append(doc)
+
+    message = f"{len(created)} stall(s) added"
+    if skipped:
+        message += f", {len(skipped)} skipped (already existed): {', '.join(skipped)}"
+    return {"success": True, "message": message, "data": serialize_list(created)}
+
+
+@router.patch("/stalls/{id}")
+async def update_stall(
+    id: str, payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    stall = await db.stalls.find_one({"_id": oid}) if oid else None
+    if not stall:
+        raise HTTPException(status_code=404, detail="Stall not found")
+
+    updates = {}
+    if "rate" in payload and payload["rate"] is not None:
+        updates["rate"] = float(payload["rate"])
+    if "packageCode" in payload and payload["packageCode"] is not None:
+        updates["packageCode"] = payload["packageCode"]
+    if "size" in payload and payload["size"] is not None:
+        updates["size"] = payload["size"]
+
+    if "mapX" in payload:
+        if payload["mapX"] is None:
+            updates["mapX"] = None
+        else:
+            n = float(payload["mapX"])
+            if n != n or n < 0 or n > 100:
+                raise HTTPException(status_code=400, detail="mapX must be a number between 0 and 100")
+            updates["mapX"] = n
+    if "mapY" in payload:
+        if payload["mapY"] is None:
+            updates["mapY"] = None
+        else:
+            n = float(payload["mapY"])
+            if n != n or n < 0 or n > 100:
+                raise HTTPException(status_code=400, detail="mapY must be a number between 0 and 100")
+            updates["mapY"] = n
+
+    if "status" in payload and payload["status"] is not None:
+        status = payload["status"]
+        if status not in STALL_STATUS_VALUES:
+            raise HTTPException(status_code=400, detail="Invalid status")
+        updates["status"] = status
+        if status == "available":
+            updates["heldBy"] = None
+            updates["bookedBy"] = None
+
+    if updates:
+        updates["updatedAt"] = utcnow()
+        await db.stalls.update_one({"_id": oid}, {"$set": updates})
+
+    updated = await db.stalls.find_one({"_id": oid})
+    return {"success": True, "data": serialize_doc(updated)}
+
+
+@router.delete("/stalls/{id}")
+async def delete_stall(
+    id: str, admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    stall = await db.stalls.find_one({"_id": oid}) if oid else None
+    if not stall:
+        raise HTTPException(status_code=404, detail="Stall not found")
+    if stall["status"] == "booked":
+        raise HTTPException(status_code=409, detail="Cannot delete a booked stall — change its status first")
+    await db.stalls.delete_one({"_id": oid})
+    return {"success": True, "message": "Stall removed"}
+
+
+@router.post("/stalls/upload-map")
+async def upload_stall_map(
+    map: UploadFile = File(...),
+    admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    filename = await save_upload(map, "stall-maps", STALL_MAP_MAX_BYTES)
+    url = f"/uploads/stall-maps/{filename}"
+    doc = new_stall_map_document(filename, url)
+    result = await db.stall_maps.insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return {"success": True, "message": "Stall map uploaded", "data": {"url": doc["url"], "uploadedAt": serialize_doc(doc)["createdAt"]}}
+
+
+# ---------- Visitors ----------
+
+@router.get("/visitors")
+async def list_visitors(
+    search: str = "", page: int = 1, limit: int = 25,
+    admin: AdminPayload = Depends(require_resource("visitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    query = _search_query(search, ["fullName", "email", "phone", "registrationCode", "organization"])
+    skip = (page - 1) * limit
+    total = await db.visitors.count_documents(query)
+    items = await db.visitors.find(query).sort("createdAt", -1).skip(skip).limit(limit).to_list(length=None)
+    return {"success": True, "data": serialize_list(items), "total": total, "page": page, "limit": limit}
+
+
+@router.get("/visitors/export")
+async def export_visitors_csv(
+    admin: AdminPayload = Depends(require_resource("visitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    items = await db.visitors.find().sort("createdAt", -1).to_list(length=None)
+    csv_text = _to_csv(items, VISITOR_CSV_COLUMNS)
+    return Response(
+        content=csv_text, media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=visitors.csv"},
+    )
+
+
+# Returns a QR code (as a data URL) encoding the public visitor registration
+# link, tagged with ?source=onsite so walk-in registrations made from the
+# poster are distinguishable from ones made ahead of time. Print this and
+# display it at the main entrance.
+@router.get("/visitors/entrance-qr")
+async def entrance_qr(admin: AdminPayload = Depends(require_resource("visitors"))):
+    base = (os.environ.get("PUBLIC_SITE_URL") or "").rstrip("/")
+    url = f"{base}/register/visitor?source=onsite"
+
+    qr_img = qrcode.make(url)
+    buf = io.BytesIO()
+    qr_img.save(buf, format="PNG")
+    qr_data_url = f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
+
+    return {"success": True, "data": {"url": url, "qrDataUrl": qr_data_url}}
+
+
+@router.post("/check-in")
+async def check_in_visitor(
+    payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_any_resource(["visitors", "scanning"])),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    registration_code = payload.get("registrationCode")
+    if not registration_code:
+        raise HTTPException(status_code=400, detail="registrationCode is required")
+
+    visitor = await db.visitors.find_one({"registrationCode": registration_code.strip().upper()})
+    if not visitor:
+        raise HTTPException(status_code=404, detail="Registration code not found")
+
+    if visitor.get("checkedIn"):
+        return {"success": True, "message": "Already checked in", "data": serialize_doc(visitor), "alreadyCheckedIn": True}
+
+    now = utcnow()
+    await db.visitors.update_one({"_id": visitor["_id"]}, {"$set": {"checkedIn": True, "checkedInAt": now}})
+    visitor["checkedIn"] = True
+    visitor["checkedInAt"] = now
+    return {"success": True, "message": "Checked in successfully", "data": serialize_doc(visitor)}
+
+
+# ---------- Admin user management ("all" permission only) ----------
+
+@router.get("/admins")
+async def list_admins(admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db)):
+    admins = await db.admins.find({}, {"passwordHash": 0}).sort("createdAt", 1).to_list(length=None)
+    return {"success": True, "data": serialize_list(admins)}
+
+
+@router.post("/admins")
+async def create_admin(
+    payload: AdminCreateRequest,
+    admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    invalid = [p for p in payload.permissions if p not in PERMISSIONS]
+    if invalid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid permission(s): {', '.join(invalid)}. Must be one of: {', '.join(PERMISSIONS)}",
+        )
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    normalized_email = payload.email.lower().strip()
+    existing = await db.admins.find_one({"email": normalized_email})
+    if existing:
+        raise HTTPException(status_code=409, detail="An admin with this email already exists")
+
+    # "all" implies everything else — store it on its own rather than
+    # alongside redundant individual permissions.
+    normalized_permissions = ["all"] if "all" in payload.permissions else list(dict.fromkeys(payload.permissions))
+
+    now = utcnow()
+    doc = {
+        "name": payload.name.strip(),
+        "email": normalized_email,
+        "passwordHash": hash_password(payload.password),
+        "permissions": normalized_permissions,
+        "createdBy": to_object_id(admin.get("id")) if admin.get("id") else None,
+        "createdAt": now,
+        "updatedAt": now,
+    }
+    result = await db.admins.insert_one(doc)
+
+    return {
+        "success": True, "message": "Admin created",
+        "data": {"id": str(result.inserted_id), "name": doc["name"], "email": doc["email"], "permissions": doc["permissions"]},
+    }
+
+
+@router.delete("/admins/{id}")
+async def delete_admin(
+    id: str, admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    target = await db.admins.find_one({"_id": oid}) if oid else None
+    if not target:
+        raise HTTPException(status_code=404, detail="Admin not found")
+
+    if "all" in (target.get("permissions") or []):
+        full_access_count = await db.admins.count_documents({"permissions": "all"})
+        if full_access_count <= 1:
+            raise HTTPException(status_code=409, detail="Cannot delete the last full-access admin account")
+
+    await db.admins.delete_one({"_id": oid})
+    return {"success": True, "message": "Admin removed"}

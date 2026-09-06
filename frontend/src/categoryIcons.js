@@ -1,0 +1,18 @@
+export const categoryIconMap = {
+  "industrial-machinery": "factory",
+  "robotics-automation": "robot",
+  manufacturing: "gear",
+  "plywood-hardware-tools": "tool",
+  "construction-real-estate": "building",
+  "jewellery-luxury": "gem",
+  "it-technology": "monitor",
+  "renewable-energy-solar": "sun",
+  "automotive-ev": "car",
+  "healthcare-medical": "heart",
+  "fmcg-consumer-goods": "cart",
+  "food-beverage": "cup",
+  "textiles-apparel": "shirt",
+  "education-skills": "cap",
+  "electrical-electronics": "bolt",
+  "travel-hospitality": "plane",
+};
