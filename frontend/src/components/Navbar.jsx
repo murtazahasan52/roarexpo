@@ -32,7 +32,7 @@ export default function Navbar() {
               {l.label}
             </NavLink>
           ))}
-          <div style={{ display: "flex", gap: 10, marginTop: 6 }} className="mobile-only-ctas">
+          <div className="mobile-only-ctas">
             <NavLink to="/register/exhibitor" className="btn btn-primary" onClick={() => setOpen(false)}>
               Exhibit
             </NavLink>

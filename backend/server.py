@@ -16,15 +16,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, Request  # noqa: E402
+from fastapi import FastAPI, Request, HTTPException  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
-from fastapi.responses import JSONResponse  # noqa: E402
+from fastapi.responses import JSONResponse, Response  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 from config.db import connect_db, close_db  # noqa: E402
 from routers import admin, exhibitors, public, visitors  # noqa: E402
+from utils.storage import get_object, init_storage  # noqa: E402
 
 UPLOAD_ROOT = pathlib.Path(__file__).resolve().parent / "uploads"
 
@@ -32,6 +33,11 @@ UPLOAD_ROOT = pathlib.Path(__file__).resolve().parent / "uploads"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_db()
+    try:
+        init_storage()
+        print("[storage] Object storage initialized")
+    except Exception as e:  # noqa: BLE001
+        print("[storage] init failed (uploads will error until resolved):", e)
     yield
     await close_db()
 
@@ -71,6 +77,19 @@ async def add_uploads_cors_header(request: Request, call_next):
 async def health():
     from datetime import datetime, timezone
     return {"success": True, "message": "ROAR Expo API is running", "time": datetime.now(timezone.utc).isoformat()}
+
+
+@app.get("/api/files/{path:path}")
+async def serve_file(path: str):
+    """Serves images stored in Emergent object storage (exhibitor logos,
+    product images, stall maps, visitor ID cards). Public, since these are
+    shown on the registration site and in emails."""
+    import asyncio
+    try:
+        data, content_type = await asyncio.to_thread(get_object, path)
+    except Exception:  # noqa: BLE001
+        raise HTTPException(status_code=404, detail="File not found")
+    return Response(content=data, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
 
 
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_ROOT)), name="uploads")

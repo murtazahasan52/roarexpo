@@ -111,13 +111,11 @@ async def register_exhibitor(
 
         logo_url = ""
         if logo is not None:
-            filename = await save_upload(logo, "logos", EXHIBITOR_FILE_MAX_BYTES)
-            logo_url = f"/uploads/logos/{filename}"
+            logo_url = await save_upload(logo, "logos", EXHIBITOR_FILE_MAX_BYTES)
 
         product_image_urls = []
         for img in productImages:
-            filename = await save_upload(img, "product-images", EXHIBITOR_FILE_MAX_BYTES)
-            product_image_urls.append(f"/uploads/product-images/{filename}")
+            product_image_urls.append(await save_upload(img, "product-images", EXHIBITOR_FILE_MAX_BYTES))
 
         registration_code = generate_registration_code("STL")
 

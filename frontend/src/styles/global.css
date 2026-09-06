@@ -425,6 +425,8 @@ p {
 @media (max-width: 900px) {
   .mobile-only-ctas {
     display: flex;
+    gap: 10px;
+    margin-top: 6px;
   }
 }
 
@@ -494,9 +496,13 @@ p {
 .hero-title {
   margin: 0;
   line-height: 0;
+  text-align: center;
 }
 
 .hero-logo {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
   width: min(92%, 640px);
   height: auto;
   filter: drop-shadow(0 14px 30px rgba(12, 26, 51, 0.18));
@@ -2136,3 +2142,82 @@ tbody tr:last-child td {
   padding: 40px;
   border-top: 3px solid var(--gold-500);
 }
+
+/* ---------- Floating WhatsApp button ---------- */
+.whatsapp-fab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  height: 60px;
+  padding: 0;
+  border-radius: 999px;
+  background: #25d366;
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 10px 26px rgba(37, 211, 102, 0.45), 0 4px 10px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  transition: padding-right 0.32s ease, box-shadow 0.25s ease, transform 0.2s ease, background-color 0.2s ease;
+  max-width: 60px;
+}
+
+.whatsapp-fab:hover,
+.whatsapp-fab:focus-visible {
+  background: #1ebe5b;
+  max-width: 320px;
+  padding-right: 22px;
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(37, 211, 102, 0.5), 0 6px 14px rgba(0, 0, 0, 0.2);
+  outline: none;
+}
+
+.whatsapp-fab-icon {
+  flex: 0 0 60px;
+  width: 60px;
+  height: 60px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.whatsapp-fab-label {
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.2s ease 0.05s, transform 0.25s ease 0.05s;
+}
+
+.whatsapp-fab:hover .whatsapp-fab-label,
+.whatsapp-fab:focus-visible .whatsapp-fab-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (max-width: 560px) {
+  .whatsapp-fab {
+    right: 16px;
+    bottom: 16px;
+    height: 56px;
+    max-width: 56px;
+  }
+  .whatsapp-fab-icon {
+    flex-basis: 56px;
+    width: 56px;
+    height: 56px;
+  }
+  .whatsapp-fab:hover,
+  .whatsapp-fab:focus-visible {
+    max-width: 56px;
+    padding-right: 0;
+  }
+  .whatsapp-fab-label {
+    display: none;
+  }
+}
+

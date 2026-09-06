@@ -31,3 +31,11 @@ Event registration system for ROAR Saifee Burhani Business Expo (Nagpur, Jan 202
 
 ## Backlog / Next
 - Awaiting user to specify concrete bugs/issues to fix.
+
+## Change log
+- 2026-06: Fixed duplicate navbar CTAs (mobile-only "Exhibit"/"Visit" were showing on desktop) — verified (iteration_1).
+- 2026-06: Migrated all file uploads (exhibitor logos, product images, admin stall-map, visitor ID-card PNG) from pod-local disk to Emergent object storage (utils/storage.py; served via GET /api/files/{path}). Re-seeded sample stall map into object storage. Resolves the deploy blocker.
+- 2026-06: Configured Gmail SMTP (mkt@roarexpo.com). NOTE: the supplied password is a normal account password which Gmail REJECTS (535 BadCredentials) — real email DELIVERY requires a 16-char Gmail App Password. Registration is non-blocking so forms still succeed.
+- 2026-06: Verified visitor + exhibitor registration end-to-end (iteration_2: backend 12/12, frontend visitor E2E). Email send confirmed non-blocking.
+- 2026-06: Fixed hero ROAR logo centering (display:block + auto margins) — verified 0px offset (iteration_3).
+- 2026-06: Added floating WhatsApp button on all public pages linking to wa.me/919284182675 — verified (iteration_3).

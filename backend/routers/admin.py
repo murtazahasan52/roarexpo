@@ -429,9 +429,8 @@ async def upload_stall_map(
     map: UploadFile = File(...),
     admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    filename = await save_upload(map, "stall-maps", STALL_MAP_MAX_BYTES)
-    url = f"/uploads/stall-maps/{filename}"
-    doc = new_stall_map_document(filename, url)
+    url = await save_upload(map, "stall-maps", STALL_MAP_MAX_BYTES)
+    doc = new_stall_map_document(url.rsplit("/", 1)[-1], url)
     result = await db.stall_maps.insert_one(doc)
     doc["_id"] = result.inserted_id
     return {"success": True, "message": "Stall map uploaded", "data": {"url": doc["url"], "uploadedAt": serialize_doc(doc)["createdAt"]}}

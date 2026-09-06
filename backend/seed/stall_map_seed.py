@@ -14,7 +14,6 @@ directory, with your .env loaded).
 """
 import asyncio
 import pathlib
-import shutil
 
 from dotenv import load_dotenv
 
@@ -22,10 +21,9 @@ load_dotenv()
 
 from config.db import connect_db, close_db  # noqa: E402
 from models.stall_map import new_stall_map_document  # noqa: E402
+from utils.storage import upload_image_bytes  # noqa: E402
 
 SOURCE_ASSET = pathlib.Path(__file__).resolve().parent / "assets" / "sample-stall-map.jpg"
-DEST_DIR = pathlib.Path(__file__).resolve().parent.parent / "uploads" / "stall-maps"
-DEST_FILENAME = "sample-stall-map.jpg"
 
 
 async def run():
@@ -42,12 +40,9 @@ async def run():
         await close_db()
         return
 
-    DEST_DIR.mkdir(parents=True, exist_ok=True)
-    dest_path = DEST_DIR / DEST_FILENAME
-    shutil.copyfile(SOURCE_ASSET, dest_path)
-
-    url = f"/uploads/stall-maps/{DEST_FILENAME}"
-    doc = new_stall_map_document(DEST_FILENAME, url)
+    data = SOURCE_ASSET.read_bytes()
+    url = upload_image_bytes(data, "image/jpeg", "stall-maps")
+    doc = new_stall_map_document(url.rsplit("/", 1)[-1], url)
     await db.stall_maps.insert_one(doc)
     print(f"[seed] Sample stall map published: {url}")
 

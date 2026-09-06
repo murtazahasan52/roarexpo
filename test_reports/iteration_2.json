@@ -1,0 +1,31 @@
+{
+  "summary": "Verified ROAR Expo visitor + exhibitor registration flows end-to-end. Backend pytest (12/12 passed) exercises both success paths (visitor JSON POST, exhibitor multipart with logo + stall hold), validation failures (missing name, invalid email, exhibitor required-field bundle), public stall + stall-map endpoints, organizer-allocated (food-court/play-zone) exhibitor path without a stall number, admin-side visibility of newly created records, and /api/files serving. Frontend UI-driven visitor submission produced success screen with code RE-VIS-9FFA00 even though SMTP delivery failed (Gmail 535 BadCredentials logged) — confirming the email-send is non-blocking. Exhibitor page loads correctly and the seeded stall map image is served from /api/files/... (naturalWidth 1024, i.e. loaded).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "VisitorRegistration + StallRegistration forms", "issues": ["Inputs have no name/id/data-testid and labels aren't associated via htmlFor. Automated testing must fall back to nth-child positional selectors, which is brittle. Recommend adding data-testid on every input, textarea, select, checkbox and the submit button."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_registration.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Add data-testid attributes to all form fields and submit buttons on /register/visitor and /register/exhibitor to make E2E tests robust (currently only positional selectors work).",
+    "(Expected, not a bug) SMTP is Gmail with a normal password; delivery fails with 535 BadCredentials. Replace SMTP_PASS in /app/backend/.env with a 16-char Gmail App Password when real email delivery is required. Registration flow itself is unaffected (non-blocking, verified)."
+  ],
+  "critical_code_review_comments": [
+    "exhibitors router: after a successful exhibitor insert, if the atomic stall claim fails (race lost), the code deletes the exhibitor doc but does not clean up already-saved logo/product images from object storage — leaves orphan files. Consider deleting those uploads on rollback.",
+    "exhibitors router: no per-request rate-limit-friendly cleanup for oversized/invalid uploads before save; validation happens after files are read into memory via FastAPI's UploadFile.",
+    "visitors router: prints error via print() rather than a proper logger. Move to logging.getLogger with structured context.",
+    "Forms lack data-testid / name / id attributes — impedes accessible-name lookup and automated testing.",
+    "React Router v7 future-flag warnings still in console (v7_startTransition, v7_relativeSplatPath); harmless but easily silenced."
+  ],
+  "updated_files": ["/app/backend/tests/test_registration.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% for tested flows (visitor E2E submit + exhibitor page load + stall map image)"},
+  "test_credentials": "Admin: admin@roarexpo.com / Admin@12345 (from /app/memory/test_credentials.md, verified working at POST /api/admin/login).",
+  "seed_data_creation": "Created test records the main agent may want to purge: Visitors — RE-VIS-* from test_visitor_register_success (email test.visitor.one@example.com) and RE-VIS-9FFA00 from UI test (email test.ui.visitor@example.com). Exhibitors — one RE-STL-* from test_exhibitor_register_success (email test.exh1@example.com, holds a stall in the first-available numbered package, e.g. 'gold'). Possibly one more RE-STL-* from the food-court path (email test.exh.fc@example.com) if that package was accepted. All test data uses TEST_ prefix in names for easy identification.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend pytest at /app/backend/tests/test_registration.py — run with: pytest /app/backend/tests/test_registration.py -v. It self-discovers an available numbered stall (tries gold→silver→…→title). Admin login endpoint is POST /api/admin/login (NOT /api/auth/login). Package codes are lowercase ('gold','silver','food-court','play-zone'). Visitor form uses JSON to /api/visitors/register with fullName/email/phone/city. Exhibitor form uses multipart to /api/exhibitors/register; agreedToTerms must be string 'true'. Stall goes 'available'→'held' after registration; picker uses stallNumber form field. Frontend inputs have no test ids so UI tests must use positional locators (page.locator('input:not([type=checkbox]):not([type=radio])').nth(i)).",
+  "rca of the issue": "N/A — no bugs found. Email failures (Gmail 535 BadCredentials) are the expected known limitation per the review request; the send is wrapped in try/except so the registration returns 200 with the code, emailError is stored on the doc, and the UI shows the success screen. Verified in logs at /var/log/supervisor/backend.out.log."
+}

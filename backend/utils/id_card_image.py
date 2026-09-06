@@ -19,11 +19,9 @@ import qrcode
 from PIL import Image, ImageDraw, ImageFont
 
 from config.event_config import EVENT
-from middleware.upload import UPLOAD_ROOT
+from utils.storage import upload_image_bytes
 
 CARD_W, CARD_H = 1120, 680
-ID_CARDS_DIR = UPLOAD_ROOT / "id-cards"
-ID_CARDS_DIR.mkdir(parents=True, exist_ok=True)
 
 _FONTS_DIR = pathlib.Path(__file__).resolve().parent.parent / "assets" / "fonts"
 _FONT_BOLD_PATH = _FONTS_DIR / "DejaVuSans-Bold.ttf"
@@ -98,6 +96,6 @@ def _build_sync(visitor: dict) -> dict:
     buffer = buf.getvalue()
 
     filename = f"{visitor['registrationCode']}.png"
-    (ID_CARDS_DIR / filename).write_bytes(buffer)
+    public_url = upload_image_bytes(buffer, "image/png", "id-cards")
 
-    return {"buffer": buffer, "filename": filename, "public_url": f"/uploads/id-cards/{filename}"}
+    return {"buffer": buffer, "filename": filename, "public_url": public_url}
