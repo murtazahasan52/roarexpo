@@ -17,7 +17,7 @@ export default function Navbar() {
       <div className="container navbar-inner">
         <NavLink to="/" className="brand" onClick={() => setOpen(false)}>
           <span className="brand-mark">ROAR</span>
-          <span className="brand-sub">Saifee Burhani Business Expo · Nagpur</span>
+          <span className="brand-sub">Business Expo – Nagpur</span>
         </NavLink>
 
         <nav className={`nav-links ${open ? "open" : ""}`}>

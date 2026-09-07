@@ -519,6 +519,14 @@ p {
   color: var(--gold-700);
 }
 
+.hero-managed-by {
+  font-size: clamp(13px, 1.4vw, 15px);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
 .hero-lead {
   color: var(--text-muted);
   font-size: 16px;

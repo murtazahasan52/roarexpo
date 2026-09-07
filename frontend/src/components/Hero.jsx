@@ -15,7 +15,10 @@ export default function Hero() {
           <img src={roarWordmark} alt="ROAR — Rose, Orange and Tiger emblem" className="hero-logo" />
         </h1>
         <div className="hero-subtitle fade-up-3">
-          Saifee Burhani Business Expo &middot; <span className="hero-city">{config.eventCity}</span>
+          Business Expo &ndash; <span className="hero-city">{config.eventCity}</span>
+        </div>
+        <div className="hero-managed-by fade-up-3">
+          Managed by Dawoodi Bohra Department of Economic Affairs {config.eventCity}
         </div>
         <p className="hero-lead fade-up-4">
           A 3-day business expo bringing together {config.totalStalls} exhibitors across{" "}
