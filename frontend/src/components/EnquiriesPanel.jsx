@@ -1,0 +1,295 @@
+import { useCallback, useEffect, useState } from "react";
+import { api } from "../api";
+import Icon from "./Icon";
+
+async function downloadCSV(url, token, filename) {
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error("Export failed");
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+// Admin dashboard "Enquiries" tab — lists messages from the public Enquiry
+// page, newest first, with a New / Handled filter, search, CSV export, and a
+// per-row toggle to mark an enquiry handled (or reopen it).
+export default function EnquiriesPanel({ token, onChange }) {
+  const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [newCount, setNewCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
+  const [busyId, setBusyId] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+  const limit = 20;
+
+  const load = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const statusQs = statusFilter === "all" ? "" : `&status=${statusFilter}`;
+      const qs = `?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}${statusQs}`;
+      const res = await api.adminEnquiries(token, qs);
+      setRows(res.data || []);
+      setTotal(res.total || 0);
+      setNewCount(res.newCount || 0);
+    } catch (err) {
+      alert(err.message || "Failed to load enquiries");
+    } finally {
+      setLoading(false);
+    }
+  }, [token, search, page, statusFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function toggleStatus(row) {
+    const next = row.status === "handled" ? "new" : "handled";
+    setBusyId(row._id);
+    try {
+      await api.adminUpdateEnquiry(token, row._id, { status: next });
+      await load();
+      if (onChange) onChange();
+    } catch (err) {
+      alert(err.message || "Failed to update enquiry");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function openEdit(row) {
+    setEditing(row);
+    setEditForm({ name: row.name || "", email: row.email || "", mobile: row.mobile || "", details: row.details || "" });
+    setEditError("");
+  }
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    setSavingEdit(true);
+    setEditError("");
+    try {
+      await api.adminUpdateEnquiry(token, editing._id, editForm);
+      setEditing(null);
+      await load();
+    } catch (err) {
+      setEditError(err.message || "Failed to update enquiry");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleDelete(row) {
+    if (!window.confirm(`Delete the enquiry from ${row.name}? This cannot be undone.`)) return;
+    setBusyId(row._id);
+    try {
+      await api.adminDeleteEnquiry(token, row._id);
+      await load();
+      if (onChange) onChange();
+    } catch (err) {
+      alert(err.message || "Failed to delete enquiry");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await downloadCSV(api.exportUrl("enquiries"), token, "roar-expo-enquiries.csv");
+    } catch (err) {
+      alert(err.message || "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const pageCount = Math.max(1, Math.ceil(total / limit));
+
+  return (
+    <>
+      <div className="toolbar" style={{ flexWrap: "wrap", gap: 12 }}>
+        <input
+          className="search-input"
+          placeholder="Search enquiries by name, email, mobile or text…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="admin-tabs" style={{ margin: 0 }}>
+          {[
+            ["all", "All"],
+            ["new", `New${newCount ? ` (${newCount})` : ""}`],
+            ["handled", "Handled"],
+          ].map(([value, label]) => (
+            <div
+              key={value}
+              className={`admin-tab ${statusFilter === value ? "active" : ""}`}
+              onClick={() => setStatusFilter(value)}
+            >
+              {label}
+            </div>
+          ))}
+        </div>
+        <button className="btn btn-dark" style={{ padding: "10px 20px" }} onClick={handleExport} disabled={exporting}>
+          {exporting ? "Exporting…" : "Export CSV"}
+        </button>
+      </div>
+
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Received</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Mobile</th>
+              <th>Enquiry</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: "center", padding: 32 }}>Loading…</td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>
+                  No enquiries {statusFilter !== "all" ? `marked "${statusFilter}"` : "yet"}.
+                </td>
+              </tr>
+            ) : (
+              rows.map((r) => {
+                const expanded = expandedId === r._id;
+                const long = (r.details || "").length > 140;
+                return (
+                  <tr key={r._id}>
+                    <td style={{ whiteSpace: "nowrap" }}>{new Date(r.createdAt).toLocaleString()}</td>
+                    <td><strong>{r.name}</strong></td>
+                    <td><a href={`mailto:${r.email}`}>{r.email}</a></td>
+                    <td style={{ whiteSpace: "nowrap" }}>{r.mobile}</td>
+                    <td style={{ maxWidth: 420, whiteSpace: "pre-wrap" }}>
+                      {expanded || !long ? r.details : `${r.details.slice(0, 140)}…`}
+                      {long && (
+                        <button
+                          type="button"
+                          className="link-button"
+                          style={{ display: "block", marginTop: 4 }}
+                          onClick={() => setExpandedId(expanded ? null : r._id)}
+                        >
+                          {expanded ? "Show less" : "Read more"}
+                        </button>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge ${r.status === "handled" ? "badge-navy" : "badge-gold"}`}>
+                        {r.status === "handled" ? "Handled" : "New"}
+                      </span>
+                    </td>
+                    <td style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        className={`btn ${r.status === "handled" ? "btn-outline" : "btn-primary"}`}
+                        style={{ padding: "6px 14px", fontSize: 13 }}
+                        onClick={() => toggleStatus(r)}
+                        disabled={busyId === r._id}
+                      >
+                        {busyId === r._id ? "…" : r.status === "handled" ? "Reopen" : "Mark Handled"}
+                      </button>
+                      <button
+                        className="btn btn-outline"
+                        style={{ padding: "6px 14px", fontSize: 13 }}
+                        onClick={() => openEdit(r)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-outline btn-danger-outline"
+                        style={{ padding: "6px 14px", fontSize: 13 }}
+                        onClick={() => handleDelete(r)}
+                        disabled={busyId === r._id}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {editing && editForm && (
+        <div className="modal-overlay" onClick={() => setEditing(null)}>
+          <div className="modal-panel card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ marginBottom: 0 }}>Edit Enquiry</h3>
+              <button className="modal-close" onClick={() => setEditing(null)} aria-label="Close">
+                <Icon name="close" />
+              </button>
+            </div>
+            {editError && <div className="alert alert-error">{editError}</div>}
+            <form onSubmit={saveEdit}>
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="field">
+                    <label>Name</label>
+                    <input required value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
+                  </div>
+                  <div className="field">
+                    <label>Mobile</label>
+                    <input required value={editForm.mobile} onChange={(e) => setEditForm((f) => ({ ...f, mobile: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Email</label>
+                  <input required type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div className="field">
+                  <label>Enquiry Details</label>
+                  <textarea required rows={6} value={editForm.details} onChange={(e) => setEditForm((f) => ({ ...f, details: e.target.value }))} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setEditing(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={savingEdit}>
+                  {savingEdit ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {pageCount > 1 && (
+        <div className="admin-tabs" style={{ marginTop: 16 }}>
+          {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
+            <div key={p} className={`admin-tab ${p === page ? "active" : ""}`} onClick={() => setPage(p)}>
+              {p}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}

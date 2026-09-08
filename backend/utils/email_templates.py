@@ -8,7 +8,7 @@ _BRAND_HEADER = f"""
       ROAR
     </div>
     <div style="font-family:Arial,sans-serif;font-size:13px;letter-spacing:2px;color:#ffffff;text-transform:uppercase;margin-top:4px;">
-      Saifee Burhani Business Expo &mdash; {EVENT['eventCity']}
+      Business Expo &mdash; {EVENT['eventCity']}
     </div>
   </div>
 """
@@ -159,4 +159,37 @@ def visitor_email_html(visitor: dict, *, has_id_card_image: bool = False) -> str
     <p>See you at the expo!<br/>Team ROAR Expo</p>
   """
 
+    return _wrap(inner)
+
+
+def _esc(s) -> str:
+    return (
+        str(s if s is not None else "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def enquiry_notification_html(enquiry: dict) -> str:
+    """Internal notification sent to the organizing team when someone submits
+    the public Enquiry form. The visitor's own text is escaped since it's
+    untrusted."""
+    inner = f"""
+    <h2 style="margin-top:0;color:#0c1a33;">New enquiry from the website</h2>
+    <p>Someone has sent an enquiry through the {EVENT['eventName']} website. Reply directly to
+      <a href="mailto:{_esc(enquiry.get('email'))}" style="color:#0c1a33;">{_esc(enquiry.get('email'))}</a>
+      or call/WhatsApp {_esc(enquiry.get('mobile'))}.</p>
+
+    <table style="width:100%;border-collapse:collapse;margin:18px 0;">
+      <tr><td style="padding:6px 0;color:#666;width:140px;">Name</td><td style="padding:6px 0;font-weight:bold;">{_esc(enquiry.get('name'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Email</td><td style="padding:6px 0;">{_esc(enquiry.get('email'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Mobile</td><td style="padding:6px 0;">{_esc(enquiry.get('mobile'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;vertical-align:top;">Enquiry</td><td style="padding:6px 0;white-space:pre-wrap;">{_esc(enquiry.get('details'))}</td></tr>
+    </table>
+
+    <p style="margin-bottom:0;color:#666;font-size:12px;">This enquiry is also listed in the admin dashboard's
+      <strong>Enquiries</strong> tab, where it can be marked as handled.</p>
+  """
     return _wrap(inner)

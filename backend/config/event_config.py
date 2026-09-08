@@ -8,7 +8,7 @@ Express version did with `res.json({ success: true, data: event })`.
 """
 
 EVENT = {
-    "eventName": "ROAR — Saifee Burhani Business Expo",
+    "eventName": "ROAR — Business Expo Nagpur",
     "eventCity": "Nagpur",
     "eventTagline": "RISE • OPPORTUNITY • AMBITION • REACH",
     "eventDatesLabel": "8 – 10 January 2027",
@@ -20,10 +20,10 @@ EVENT = {
     "venueMapUrl": "https://www.google.com/maps/search/?api=1&query=MSB+Ground+Nagpur",
     "totalStalls": "100+",
     "organizers": [
-        # Confirmed exact spelling/wording per the organizer's own site.
-        # dbohra is shown as a logo partner on the homepage, not listed here as
-        # a formal organizer — Tijaraat is the sole organizer per instruction.
-        {"name": "Idaarah al-Tijaarat al-Raabehah", "tagline": "Economic Affairs Committee"},
+        # Shown in the homepage "About" organizer strip (alongside the department's
+        # logo). dbohra is shown as a logo partner on the homepage, not listed
+        # here as a formal organizer.
+        {"name": "Dawoodi Bohra Department of Economic Affairs", "tagline": "Nagpur Jamiyat"},
     ],
     "contact": {
         # Per the official expo poster: WhatsApp message only, no calls.

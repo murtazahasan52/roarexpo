@@ -1,0 +1,53 @@
+{
+  "summary": "Comprehensive backend + frontend testing of new stall-map/PDF/series features, admin edit/delete flows, public /stalls page, and regressions. Backend: 33/33 tests passing (22 new-feature tests + 11 legacy registration tests, after 1 stale expectation updated). Frontend: /stalls loads with 'Venue layout & stall bookings', navbar Enquiry appears once in right CTA cluster, WhatsApp button + hero logo centering verified, admin dashboard tabs render correctly. All spec acceptance criteria pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin dashboard stat cards", "issues": ["Stat cards show '0 EXHIBITOR REGISTRATIONS' while the Exhibitors table lists 2 rows — cards likely count only 'approved' exhibitors (both listed are 'Pending'); label could be clarified as 'Approved Exhibitors' to avoid confusion."]}
+    ]
+  },
+  "test_details": {
+    "admin_login": "token present at top-level response.token (length 100+); nested data.token is not set (spec compliant).",
+    "stall_map_pdf_upload": "POST /api/admin/stalls/upload-map with application/pdf → 200, message 'PDF layout converted and uploaded', data.url starts with /api/files/roar-expo/stall-maps/ ending in .png, GETting that URL returns 200 image/png.",
+    "stall_map_png_upload": "PNG upload → 200, sourceType='image', /api/files URL fetches with correct image/* content-type.",
+    "map_series_validation": "PUT /api/admin/stalls/map-series: valid series persisted; invalid prefix 'g1' → 400 'Series prefix \"G1\" must be 1–4 letters'; unknown packageCode → 400 'Unknown category'. Note: error payload uses key 'message' (custom exception handler), not FastAPI default 'detail'.",
+    "generate_from_series": "POST /api/admin/stalls/generate-from-series created stalls TG-1..TG-3 with counts override; re-running returned 0 created / 3 skipped (idempotent).",
+    "public_endpoints": "GET /api/public/stall-map returns url/sourceType/series. GET /api/public/stalls (no packageCode) → 200 with ALL stalls (behaviour changed from earlier 400 — updated legacy test). GET /api/public/stalls?packageCode=gold filters correctly. GET /api/public/stall-directory returns list (empty when no stalls have mapX/mapY).",
+    "public_stalls_page": "/stalls loads without JS errors, renders 'STALLS / Venue layout & stall bookings' with stall counters and 'All categories' filter chip; footer + navbar intact.",
+    "admin_visitor_edit_delete": "PATCH updates city/checkedIn/numberOfGuests; numberOfGuests=99 → 400 (1–10 rule); source='carrier-pigeon' → 400 (online|onsite); DELETE returns 200.",
+    "admin_exhibitor_delete": "DELETE releases held stall back to 'available' (verified against /api/public/stalls after delete).",
+    "admin_enquiry_edit_delete": "PATCH status handled/reopened works; PATCH field updates work; invalid status → 400; DELETE returns 200.",
+    "regression_registration_email": "Visitor + exhibitor registrations succeed with RE-VIS-* and RE-STL-* codes; admin list shows no emailError field set on created docs (Gmail SMTP delivering successfully).",
+    "navbar": "Nav links = [Home, About, Categories, Stalls, Contact] + right CTA cluster [Exhibit(Register as Exhibitor), Visit(Register as Visitor), Enquiry]. Only ONE 'Enquiry' entry in nav (no duplicate). Element is <a> styled as button — matches spec intent.",
+    "whatsapp_button": "data-testid='whatsapp-float-button' present bottom-right, href=https://wa.me/919284182675?text=... (number matches +91 92841 82675).",
+    "hero_logo": "cx=960 at viewport 1920 — perfectly centered."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/test_registration.py",
+    "/app/test_reports/pytest/iter4.xml"
+  ],
+  "action_items": [
+    "(Optional) Clarify stat-card label 'EXHIBITOR REGISTRATIONS' → 'APPROVED EXHIBITORS' since it appears to count only approved rows (pending exhibitors visible in table are excluded from count)."
+  ],
+  "critical_code_review_comments": [
+    "Custom exception handler serializes HTTPException as {'success': false, 'message': ...} instead of FastAPI's default {'detail': ...} — worth documenting in API contract so clients (and future tests) don't rely on 'detail'.",
+    "admin.py is 824 lines — approaching the 700-line guideline; consider splitting stall-map handlers into a dedicated router file.",
+    "Consider a lightweight bulk delete endpoint for TEST_ prefixed records to make automated cleanup easier during CI."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py (created)",
+    "/app/backend/tests/test_registration.py (updated: test_public_stalls_requires_package → test_public_stalls_all_no_package to match new behaviour)"
+  ],
+  "success_rate": {"backend": "100% (33/33)", "frontend": "100% acceptance criteria"},
+  "test_credentials": "admin@roarexpo.com / Admin@12345 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Tests create TEST_-prefixed visitor/exhibitor/enquiry rows and TG-1..TG-3 stalls, then clean them up in the same test module. Additionally, leftover TEST rows from previous iterations were deleted via admin API at end of run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New feature endpoints (upload-map, map-series, generate-from-series, admin edit/delete for visitors/exhibitors/enquiries) are fully covered in /app/backend/tests/test_new_features.py. Note: error payloads use 'message' key not 'detail'. /api/public/stalls with no packageCode now returns ALL stalls (not 400). All test data is prefixed with TEST_ or 'TG-' for easy cleanup."
+}

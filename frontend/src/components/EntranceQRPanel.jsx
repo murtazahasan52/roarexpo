@@ -64,7 +64,7 @@ export default function EntranceQRPanel({ token }) {
               ROAR
             </div>
             <div style={{ fontSize: 12, letterSpacing: 1.5, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 20 }}>
-              Saifee Burhani Business Expo &middot; Nagpur
+              Business Expo &ndash; Nagpur
             </div>
             <img
               src={qr.qrDataUrl}

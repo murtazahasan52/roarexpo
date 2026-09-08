@@ -6,7 +6,9 @@ import AdminsPanel from "../components/AdminsPanel";
 import StallsPanel from "../components/StallsPanel";
 import ScanCheckInPanel from "../components/ScanCheckInPanel";
 import EntranceQRPanel from "../components/EntranceQRPanel";
+import EnquiriesPanel from "../components/EnquiriesPanel";
 import ExhibitorEditModal from "../components/ExhibitorEditModal";
+import VisitorEditModal from "../components/VisitorEditModal";
 import CountUp from "../components/CountUp";
 
 async function downloadCSV(url, token, filename) {
@@ -50,6 +52,7 @@ const TAB_LABELS = {
   visitors: "Visitors",
   scan: "Scan & Check In",
   "entrance-qr": "Entrance QR",
+  enquiries: "Enquiries",
   admins: "Admins",
 };
 
@@ -68,6 +71,7 @@ function tabsForPermissions(permissions) {
   if (hasAny(permissions, "visitors")) tabs.push("visitors");
   if (hasAny(permissions, "visitors", "scanning")) tabs.push("scan");
   if (hasAny(permissions, "visitors")) tabs.push("entrance-qr");
+  if (hasAny(permissions, "enquiries")) tabs.push("enquiries");
   if (hasAny(permissions, "all")) tabs.push("admins");
   return tabs;
 }
@@ -87,9 +91,10 @@ export default function AdminDashboard() {
   const canSeeExhibitorsList = hasAny(permissions, "exhibitors", "invoicing");
   const canSeeVisitors = hasAny(permissions, "visitors");
   const canSeeCheckedInStat = hasAny(permissions, "visitors", "scanning");
+  const canSeeEnquiries = hasAny(permissions, "enquiries");
 
   const [tab, setTab] = useState(availableTabs[0]);
-  const [stats, setStats] = useState({ exhibitorCount: 0, visitorCount: 0, checkedInCount: 0 });
+  const [stats, setStats] = useState({ exhibitorCount: 0, visitorCount: 0, checkedInCount: 0, newEnquiryCount: 0 });
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -100,6 +105,9 @@ export default function AdminDashboard() {
   const [exporting, setExporting] = useState(false);
   const [invoicingId, setInvoicingId] = useState(null);
   const [editingExhibitor, setEditingExhibitor] = useState(null);
+  const [viewingExhibitor, setViewingExhibitor] = useState(null);
+  const [editingVisitor, setEditingVisitor] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const limit = 20;
 
   async function handleExport() {
@@ -135,7 +143,7 @@ export default function AdminDashboard() {
   }, [token, logout]);
 
   const loadRows = useCallback(async () => {
-    if (!token || tab === "admins" || tab === "stalls" || tab === "scan" || tab === "entrance-qr") return;
+    if (!token || tab === "admins" || tab === "stalls" || tab === "scan" || tab === "entrance-qr" || tab === "enquiries") return;
     setLoading(true);
     try {
       const qs = `?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`;
@@ -194,6 +202,41 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleDeleteExhibitor(r) {
+    if (
+      !window.confirm(
+        `Permanently delete the registration for ${r.companyName} (${r.registrationCode})? ` +
+          "Their stall (if any) will be released. This cannot be undone."
+      )
+    )
+      return;
+    setDeletingId(r._id);
+    try {
+      await api.adminDeleteExhibitor(token, r._id);
+      loadRows();
+      loadStats();
+    } catch (err) {
+      alert(err.message || "Failed to delete exhibitor");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleDeleteVisitor(r) {
+    if (!window.confirm(`Permanently delete the visitor registration for ${r.fullName} (${r.registrationCode})? This cannot be undone.`))
+      return;
+    setDeletingId(r._id);
+    try {
+      await api.adminDeleteVisitor(token, r._id);
+      loadRows();
+      loadStats();
+    } catch (err) {
+      alert(err.message || "Failed to delete visitor");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   async function handleCheckIn(e) {
     e.preventDefault();
     setCheckInMsg("");
@@ -235,6 +278,7 @@ export default function AdminDashboard() {
           {canSeeExhibitorsList && <StatCard label="Exhibitor Registrations" value={stats.exhibitorCount} />}
           {canSeeVisitors && <StatCard label="Visitor Registrations" value={stats.visitorCount} />}
           {canSeeCheckedInStat && <StatCard label="Visitors Checked In" value={stats.checkedInCount} />}
+          {canSeeEnquiries && <StatCard label="New Enquiries" value={stats.newEnquiryCount || 0} />}
         </div>
 
         {tab === "visitors" && (
@@ -271,6 +315,8 @@ export default function AdminDashboard() {
           <ScanCheckInPanel token={token} />
         ) : tab === "entrance-qr" ? (
           <EntranceQRPanel token={token} />
+        ) : tab === "enquiries" ? (
+          <EnquiriesPanel token={token} onChange={loadStats} />
         ) : (
           <>
             <div className="toolbar">
@@ -376,6 +422,13 @@ export default function AdminDashboard() {
                               </button>
                             </>
                           )}
+                          <button
+                            className="btn btn-outline"
+                            style={{ padding: "6px 14px", fontSize: 12.5 }}
+                            onClick={() => setViewingExhibitor(r)}
+                          >
+                            View
+                          </button>
                           {canManageExhibitors && (
                             <button
                               className="btn btn-outline"
@@ -395,12 +448,22 @@ export default function AdminDashboard() {
                               {invoicingId === r._id ? "…" : "Invoice"}
                             </button>
                           )}
+                          {canManageExhibitors && (
+                            <button
+                              className="btn btn-outline btn-danger-outline"
+                              style={{ padding: "6px 14px", fontSize: 12.5 }}
+                              onClick={() => handleDeleteExhibitor(r)}
+                              disabled={deletingId === r._id}
+                            >
+                              {deletingId === r._id ? "…" : "Delete"}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
                     {!loading && rows.length === 0 && (
                       <tr>
-                        <td colSpan={12} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                        <td colSpan={13} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                           No exhibitor registrations yet.
                         </td>
                       </tr>
@@ -422,6 +485,7 @@ export default function AdminDashboard() {
                       <th>Email Sent</th>
                       <th>WhatsApp</th>
                       <th>Registered</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -454,11 +518,28 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td>{new Date(r.createdAt).toLocaleString()}</td>
+                        <td style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            className="btn btn-outline"
+                            style={{ padding: "6px 14px", fontSize: 12.5 }}
+                            onClick={() => setEditingVisitor(r)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-outline btn-danger-outline"
+                            style={{ padding: "6px 14px", fontSize: 12.5 }}
+                            onClick={() => handleDeleteVisitor(r)}
+                            disabled={deletingId === r._id}
+                          >
+                            {deletingId === r._id ? "…" : "Delete"}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {!loading && rows.length === 0 && (
                       <tr>
-                        <td colSpan={11} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                        <td colSpan={12} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                           No visitor registrations yet.
                         </td>
                       </tr>
@@ -494,6 +575,27 @@ export default function AdminDashboard() {
           onSaved={() => {
             setEditingExhibitor(null);
             loadRows();
+          }}
+        />
+      )}
+      {viewingExhibitor && (
+        <ExhibitorEditModal
+          exhibitor={viewingExhibitor}
+          token={token}
+          readOnly
+          onClose={() => setViewingExhibitor(null)}
+          onSaved={() => setViewingExhibitor(null)}
+        />
+      )}
+      {editingVisitor && (
+        <VisitorEditModal
+          visitor={editingVisitor}
+          token={token}
+          onClose={() => setEditingVisitor(null)}
+          onSaved={() => {
+            setEditingVisitor(null);
+            loadRows();
+            loadStats();
           }}
         />
       )}

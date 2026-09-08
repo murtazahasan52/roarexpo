@@ -67,7 +67,7 @@ class _HeaderBand(Flowable):
         c.drawString(self.margin, self.height - 30, "ROAR")
         c.setFillColor(colors.white)
         c.setFont("Helvetica", 9)
-        c.drawString(self.margin, self.height - 46, f"{EVENT['eventName']} — {EVENT['eventCity']}".upper())
+        c.drawString(self.margin, self.height - 46, EVENT["eventName"].upper())
         c.setFont("Helvetica-Bold", 12)
         c.drawRightString(self.width - self.margin, self.height - 22, "STALL BOOKING SUMMARY")
 

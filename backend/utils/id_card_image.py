@@ -65,7 +65,7 @@ def _build_sync(visitor: dict) -> dict:
     bold_20 = _font(_FONT_BOLD_PATH, 20)
 
     draw.text((80, 55), "ROAR", font=bold_76, fill=GOLD)
-    draw.text((80, 138), f"SAIFEE BURHANI BUSINESS EXPO — {EVENT['eventCity'].upper()}", font=reg_24, fill=WHITE)
+    draw.text((80, 138), f"BUSINESS EXPO — {EVENT['eventCity'].upper()}", font=reg_24, fill=WHITE)
     draw.line([(80, 200), (720, 200)], fill=GOLD, width=2)
 
     draw.text((80, 228), "VISITOR INVITATION", font=reg_20, fill=LIGHT_GREY)

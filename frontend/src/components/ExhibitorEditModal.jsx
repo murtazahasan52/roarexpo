@@ -1,23 +1,35 @@
-import { useState } from "react";
-import { api } from "../api";
+import { useEffect, useState } from "react";
+import { api, BASE_URL } from "../api";
 import { useEventConfig } from "../hooks/useEventConfig";
 import Icon from "./Icon";
 
+// Uploaded files are served from the backend origin (BASE_URL minus "/api").
+const FILE_ORIGIN = BASE_URL.replace(/\/api\/?$/, "");
+const fileUrl = (path) => (path ? (path.startsWith("http") ? path : `${FILE_ORIGIN}${path}`) : "");
+
 function fieldsFromExhibitor(exhibitor) {
   return {
+    itsNumber: exhibitor.itsNumber || "",
     companyName: exhibitor.companyName || "",
     contactPerson: exhibitor.contactPerson || "",
     designation: exhibitor.designation || "",
     email: exhibitor.email || "",
     phone: exhibitor.phone || "",
+    landline: exhibitor.landline || "",
     whatsapp: exhibitor.whatsapp || "",
     businessAddress: exhibitor.businessAddress || "",
+    businessEmail: exhibitor.businessEmail || "",
     city: exhibitor.city || "",
     state: exhibitor.state || "",
     pincode: exhibitor.pincode || "",
+    website: exhibitor.website || "",
     gstNumber: exhibitor.gstNumber || "",
+    linkedin: exhibitor.linkedin || "",
+    instagram: exhibitor.instagram || "",
+    facebook: exhibitor.facebook || "",
     category: exhibitor.category || "",
     productsServices: exhibitor.productsServices || "",
+    message: exhibitor.message || "",
     stallPackage: exhibitor.stallPackage || "",
     numberOfStalls: exhibitor.numberOfStalls || 1,
     stallNumber: exhibitor.stallNumber || "",
@@ -25,18 +37,53 @@ function fieldsFromExhibitor(exhibitor) {
   };
 }
 
-export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved }) {
+const STATUS_LABEL = { pending: "Pending approval", confirmed: "Confirmed", cancelled: "Cancelled" };
+const STALL_STATUS_LABEL = { available: "available", held: "pending confirmation", booked: "booked", blocked: "blocked" };
+
+// View / edit an exhibitor registration. `readOnly` shows every field the
+// exhibitor submitted (including logo and product images) without inputs —
+// used for the "View" button and for admins who can see but not manage
+// exhibitors. Otherwise every editable field is a form control, and the
+// stall number is picked from the live list of stalls in the chosen
+// rate-card category (the exhibitor's current stall stays selectable even
+// though it's no longer "available").
+export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved, readOnly = false }) {
   const { config } = useEventConfig();
   const [form, setForm] = useState(() => fieldsFromExhibitor(exhibitor));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [stalls, setStalls] = useState([]);
+  const [stallsLoading, setStallsLoading] = useState(false);
+
+  const selectedPackage = (config.stallPackages || []).find((p) => p.code === form.stallPackage);
+  const hasPicker = Boolean(selectedPackage?.hasStallPicker);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  // Load the stalls for whichever category is selected, so the stall number
+  // can be chosen from a list rather than typed.
+  useEffect(() => {
+    if (readOnly || !hasPicker || !form.stallPackage) {
+      setStalls([]);
+      return;
+    }
+    let cancelled = false;
+    setStallsLoading(true);
+    api
+      .getStalls(form.stallPackage)
+      .then((res) => !cancelled && setStalls(res.data || []))
+      .catch(() => !cancelled && setStalls([]))
+      .finally(() => !cancelled && setStallsLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [form.stallPackage, hasPicker, readOnly]);
+
   async function handleSubmit(e) {
     e.preventDefault();
+    if (readOnly) return;
     setError("");
     setSaving(true);
     try {
@@ -49,11 +96,42 @@ export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved 
     }
   }
 
+  // Stall options: everything still available in this category, plus the
+  // exhibitor's own current stall (which is held/booked by them).
+  const stallOptions = stalls.filter((s) => s.status === "available" || s.stallNumber === exhibitor.stallNumber);
+  const currentStallKnown = !form.stallNumber || stallOptions.some((s) => s.stallNumber === form.stallNumber);
+
+  // Plain render helper (NOT a nested component — a component defined inside
+  // render would remount on every keystroke and drop input focus).
+  const field = (label, name, { type = "text", required = false, placeholder = "" } = {}) => (
+    <div key={name} className="field">
+      <label>{label}</label>
+      {readOnly ? (
+        <div className="field-readonly">{form[name] || <span className="field-empty">—</span>}</div>
+      ) : (
+        <input
+          type={type}
+          required={required}
+          placeholder={placeholder}
+          value={form[name]}
+          onChange={(e) => update(name, e.target.value)}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 style={{ marginBottom: 0 }}>Edit Exhibitor — {exhibitor.registrationCode}</h3>
+          <div>
+            <h3 style={{ marginBottom: 2 }}>
+              {readOnly ? "Exhibitor Details" : "Edit Exhibitor"} — {exhibitor.registrationCode}
+            </h3>
+            <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+              {STATUS_LABEL[exhibitor.status] || exhibitor.status} · registered {new Date(exhibitor.createdAt).toLocaleString()}
+            </div>
+          </div>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             <Icon name="close" />
           </button>
@@ -63,127 +141,191 @@ export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved 
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
-            <div className="modal-section-label">Company &amp; Contact</div>
+            <div className="modal-section-label">Stall Assignment</div>
             <div className="form-row">
               <div className="field">
-                <label>Company Name</label>
-                <input required value={form.companyName} onChange={(e) => update("companyName", e.target.value)} />
+                <label>Stall Package</label>
+                {readOnly ? (
+                  <div className="field-readonly">{selectedPackage?.label || form.stallPackage || "—"}</div>
+                ) : (
+                  <select
+                    value={form.stallPackage}
+                    onChange={(e) => {
+                      update("stallPackage", e.target.value);
+                      // A different category has different stalls — clear the pick.
+                      if (e.target.value !== exhibitor.stallPackage) update("stallNumber", "");
+                      else update("stallNumber", exhibitor.stallNumber || "");
+                    }}
+                  >
+                    <option value="">Select…</option>
+                    {(config.stallPackages || []).map((p) => (
+                      <option key={p.code} value={p.code}>
+                        {p.label} — {p.rate != null ? `₹${Number(p.rate).toLocaleString("en-IN")}` : p.sizeLabel}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="field">
-                <label>Contact Person</label>
-                <input required value={form.contactPerson} onChange={(e) => update("contactPerson", e.target.value)} />
+                <label>Stall Number</label>
+                {readOnly ? (
+                  <div className="field-readonly">
+                    {form.stallNumber || <span className="field-empty">Not assigned</span>}
+                    {exhibitor.stallRate != null && (
+                      <span style={{ color: "var(--text-muted)" }}> · ₹{Number(exhibitor.stallRate).toLocaleString("en-IN")}</span>
+                    )}
+                  </div>
+                ) : hasPicker ? (
+                  <>
+                    <select value={form.stallNumber} onChange={(e) => update("stallNumber", e.target.value)}>
+                      <option value="">Not assigned (leave blank to unassign)</option>
+                      {!currentStallKnown && <option value={form.stallNumber}>{form.stallNumber}</option>}
+                      {stallOptions.map((s) => (
+                        <option key={s._id} value={s.stallNumber}>
+                          {s.stallNumber}
+                          {s.stallNumber === exhibitor.stallNumber
+                            ? " — current"
+                            : s.status !== "available"
+                            ? ` — ${STALL_STATUS_LABEL[s.status] || s.status}`
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                      {stallsLoading
+                        ? "Loading stalls…"
+                        : `${stallOptions.filter((s) => s.status === "available").length} available in ${selectedPackage?.label || "this category"}`}
+                    </div>
+                  </>
+                ) : (
+                  <div className="field-readonly">
+                    <span className="field-empty">Not applicable — space allocated by the organizing team</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="form-row">
               <div className="field">
-                <label>Designation</label>
-                <input value={form.designation} onChange={(e) => update("designation", e.target.value)} />
+                <label>Number of Stalls</label>
+                {readOnly ? (
+                  <div className="field-readonly">{form.numberOfStalls}</div>
+                ) : (
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.numberOfStalls}
+                    onChange={(e) => update("numberOfStalls", Number(e.target.value) || 1)}
+                  />
+                )}
               </div>
-              <div className="field">
-                <label>Email</label>
-                <input required type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="field">
-                <label>Phone</label>
-                <input required value={form.phone} onChange={(e) => update("phone", e.target.value)} />
-              </div>
-              <div className="field">
-                <label>WhatsApp</label>
-                <input value={form.whatsapp} onChange={(e) => update("whatsapp", e.target.value)} />
-              </div>
+              {field("Fascia Name", "fasciaName")}
             </div>
 
-            <div className="modal-section-label">Address</div>
-            <div className="field">
-              <label>Business Address</label>
-              <input value={form.businessAddress} onChange={(e) => update("businessAddress", e.target.value)} />
+            <div className="modal-section-label">Contact Person</div>
+            <div className="form-row">
+              {field("ITS Number", "itsNumber")}
+              {field("Name", "contactPerson", { required: true })}
             </div>
             <div className="form-row">
-              <div className="field">
-                <label>City</label>
-                <input value={form.city} onChange={(e) => update("city", e.target.value)} />
-              </div>
-              <div className="field">
-                <label>State</label>
-                <input value={form.state} onChange={(e) => update("state", e.target.value)} />
-              </div>
+              {field("Designation", "designation")}
+              {field("Personal Email", "email", { type: "email", required: true })}
             </div>
             <div className="form-row">
-              <div className="field">
-                <label>Pincode</label>
-                <input value={form.pincode} onChange={(e) => update("pincode", e.target.value)} />
-              </div>
-              <div className="field">
-                <label>GST Number</label>
-                <input value={form.gstNumber} onChange={(e) => update("gstNumber", e.target.value)} />
-              </div>
+              {field("Mobile", "phone", { required: true })}
+              {field("WhatsApp", "whatsapp")}
+            </div>
+            {field("Landline", "landline")}
+
+            <div className="modal-section-label">Business</div>
+            <div className="form-row">
+              {field("Company Name", "companyName", { required: true })}
+              {field("Business Email", "businessEmail", { type: "email" })}
+            </div>
+            {field("Business Address", "businessAddress")}
+            <div className="form-row">
+              {field("City", "city")}
+              {field("State", "state")}
+            </div>
+            <div className="form-row">
+              {field("Pincode", "pincode")}
+              {field("GST Number", "gstNumber")}
+            </div>
+            <div className="form-row">
+              {field("Website", "website")}
+              {field("LinkedIn", "linkedin")}
+            </div>
+            <div className="form-row">
+              {field("Instagram", "instagram")}
+              {field("Facebook", "facebook")}
             </div>
 
             <div className="modal-section-label">Category &amp; Products</div>
             <div className="field">
               <label>Category</label>
-              <select value={form.category} onChange={(e) => update("category", e.target.value)}>
-                <option value="">Select…</option>
-                {(config.categories || []).map((c) => (
-                  <option key={c.key} value={c.label}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Products / Services</label>
-              <textarea value={form.productsServices} onChange={(e) => update("productsServices", e.target.value)} />
-            </div>
-
-            <div className="modal-section-label">Stall Assignment</div>
-            <div className="form-row">
-              <div className="field">
-                <label>Stall Package</label>
-                <select value={form.stallPackage} onChange={(e) => update("stallPackage", e.target.value)}>
+              {readOnly ? (
+                <div className="field-readonly">{form.category || "—"}</div>
+              ) : (
+                <select value={form.category} onChange={(e) => update("category", e.target.value)}>
                   <option value="">Select…</option>
-                  {(config.stallPackages || []).map((p) => (
-                    <option key={p.code} value={p.code}>
-                      {p.label} — {p.rate != null ? `₹${Number(p.rate).toLocaleString("en-IN")}` : p.sizeLabel}
+                  {(config.categories || []).map((c) => (
+                    <option key={c.key} value={c.label}>
+                      {c.label}
                     </option>
                   ))}
                 </select>
-              </div>
-              <div className="field">
-                <label>Number of Stalls</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.numberOfStalls}
-                  onChange={(e) => update("numberOfStalls", Number(e.target.value) || 1)}
-                />
-              </div>
+              )}
             </div>
-            <div className="form-row">
-              <div className="field">
-                <label>Stall Number</label>
-                <input
-                  placeholder="e.g. G-2, R-14, RU-33 (leave blank to unassign; not applicable for Food Court/Play Zone)"
-                  value={form.stallNumber}
-                  onChange={(e) => update("stallNumber", e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label>Fascia Name</label>
-                <input value={form.fasciaName} onChange={(e) => update("fasciaName", e.target.value)} />
-              </div>
+            <div className="field">
+              <label>Products / Services</label>
+              {readOnly ? (
+                <div className="field-readonly" style={{ whiteSpace: "pre-wrap" }}>
+                  {form.productsServices || <span className="field-empty">—</span>}
+                </div>
+              ) : (
+                <textarea value={form.productsServices} onChange={(e) => update("productsServices", e.target.value)} />
+              )}
             </div>
+            <div className="field">
+              <label>Message from exhibitor</label>
+              {readOnly ? (
+                <div className="field-readonly" style={{ whiteSpace: "pre-wrap" }}>
+                  {form.message || <span className="field-empty">—</span>}
+                </div>
+              ) : (
+                <textarea value={form.message} onChange={(e) => update("message", e.target.value)} />
+              )}
+            </div>
+
+            {(exhibitor.logoUrl || (exhibitor.productImages || []).length > 0) && (
+              <>
+                <div className="modal-section-label">Uploaded Images</div>
+                <div className="image-strip">
+                  {exhibitor.logoUrl && (
+                    <a href={fileUrl(exhibitor.logoUrl)} target="_blank" rel="noreferrer" className="image-thumb" title="Company logo">
+                      <img src={fileUrl(exhibitor.logoUrl)} alt="Company logo" />
+                      <span>Logo</span>
+                    </a>
+                  )}
+                  {(exhibitor.productImages || []).map((src, i) => (
+                    <a key={src} href={fileUrl(src)} target="_blank" rel="noreferrer" className="image-thumb" title={`Product image ${i + 1}`}>
+                      <img src={fileUrl(src)} alt={`Product ${i + 1}`} />
+                      <span>Product {i + 1}</span>
+                    </a>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>
-              Cancel
+              {readOnly ? "Close" : "Cancel"}
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? "Saving…" : "Save Changes"}
-            </button>
+            {!readOnly && (
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            )}
           </div>
         </form>
       </div>

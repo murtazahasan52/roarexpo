@@ -8,6 +8,7 @@ const PERMISSION_OPTIONS = [
   { value: "visitors", label: "Visitors", hint: "List, search, export, and check in visitors" },
   { value: "scanning", label: "Scanning Only", hint: "Gate check-in only — no visitor list/export" },
   { value: "invoicing", label: "Invoicing", hint: "Generate stall booking-summary invoices" },
+  { value: "enquiries", label: "Enquiries", hint: "Read and handle enquiries from the public Enquiry page" },
 ];
 
 const PERMISSION_LABELS = Object.fromEntries(PERMISSION_OPTIONS.map((p) => [p.value, p.label]));

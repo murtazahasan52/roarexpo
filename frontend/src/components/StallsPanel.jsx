@@ -39,11 +39,22 @@ export default function StallsPanel({ token }) {
   const [savingId, setSavingId] = useState(null);
 
   const [mapUrl, setMapUrl] = useState("");
+  const [mapInfo, setMapInfo] = useState(null); // { url, uploadedAt, sourceType, series }
   const [mapFile, setMapFile] = useState(null);
   const [mapPreview, setMapPreview] = useState("");
   const [mapUploading, setMapUploading] = useState(false);
   const [mapError, setMapError] = useState("");
   const fileInputRef = useRef(null);
+
+  // ---------- Layout series → category mapping ----------
+  // One row per letter series drawn on the layout (e.g. "G" → Gold, "R" →
+  // Regular). Saved on the current map; "Generate stalls" turns it into
+  // stall records (G1…Gn) at each category's rate-card price.
+  const [seriesRows, setSeriesRows] = useState([]);
+  const [seriesDirty, setSeriesDirty] = useState(false);
+  const [seriesSaving, setSeriesSaving] = useState(false);
+  const [seriesMsg, setSeriesMsg] = useState("");
+  const [generating, setGenerating] = useState(false);
 
   // ---------- Place Stalls on Map ----------
   const [placeCategory, setPlaceCategory] = useState("");
@@ -67,7 +78,12 @@ export default function StallsPanel({ token }) {
   const loadMap = useCallback(async () => {
     try {
       const res = await api.getStallMap();
-      if (res?.data?.url) setMapUrl(res.data.url);
+      if (res?.data?.url) {
+        setMapUrl(res.data.url);
+        setMapInfo(res.data);
+        setSeriesRows((res.data.series || []).map((s) => ({ ...s })));
+        setSeriesDirty(false);
+      }
     } catch (err) {
       // no map uploaded yet — not an error worth surfacing
     }
@@ -151,7 +167,8 @@ export default function StallsPanel({ token }) {
     setMapError("");
     if (!file) return;
     setMapFile(file);
-    setMapPreview(URL.createObjectURL(file));
+    // A PDF can't be previewed as an <img>; the server renders its first page.
+    setMapPreview(file.type === "application/pdf" ? "" : URL.createObjectURL(file));
   }
 
   async function handleMapUpload() {
@@ -159,8 +176,13 @@ export default function StallsPanel({ token }) {
     setMapUploading(true);
     setMapError("");
     try {
-      const res = await api.adminUploadStallMap(token, mapFile);
-      if (res?.data?.url) setMapUrl(res.data.url);
+      const res = await api.adminUploadStallMap(token, mapFile, seriesRows.length ? seriesRows : undefined);
+      if (res?.data?.url) {
+        setMapUrl(res.data.url);
+        setMapInfo(res.data);
+        setSeriesRows((res.data.series || []).map((s) => ({ ...s })));
+        setSeriesDirty(false);
+      }
       setMapFile(null);
       setMapPreview("");
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -169,6 +191,66 @@ export default function StallsPanel({ token }) {
     } finally {
       setMapUploading(false);
     }
+  }
+
+  function updateSeriesRow(index, field, value) {
+    setSeriesRows((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+    setSeriesDirty(true);
+    setSeriesMsg("");
+  }
+
+  function addSeriesRow() {
+    setSeriesRows((rows) => [...rows, { prefix: "", packageCode: "", separator: "" }]);
+    setSeriesDirty(true);
+  }
+
+  function removeSeriesRow(index) {
+    setSeriesRows((rows) => rows.filter((_, i) => i !== index));
+    setSeriesDirty(true);
+    setSeriesMsg("");
+  }
+
+  async function saveSeries() {
+    setSeriesSaving(true);
+    setSeriesMsg("");
+    try {
+      const cleaned = seriesRows.filter((r) => r.prefix.trim() && r.packageCode);
+      const res = await api.adminSaveMapSeries(token, cleaned);
+      setMapInfo(res.data);
+      setSeriesRows((res.data.series || []).map((s) => ({ ...s })));
+      setSeriesDirty(false);
+      setSeriesMsg("Series mapping saved.");
+    } catch (err) {
+      setSeriesMsg(err.message || "Failed to save series mapping");
+    } finally {
+      setSeriesSaving(false);
+    }
+  }
+
+  async function generateStalls() {
+    const summary = seriesRows
+      .filter((r) => r.prefix && r.packageCode)
+      .map((r) => {
+        const pkg = (config.stallPackages || []).find((p) => p.code === r.packageCode);
+        return `${r.prefix}${r.separator || ""}1 … ${r.prefix}${r.separator || ""}${pkg?.stallCount || "?"} (${pkg?.label || r.packageCode})`;
+      })
+      .join("\n");
+    if (!window.confirm(`Create these stall records (existing numbers are skipped)?\n\n${summary}`)) return;
+    setGenerating(true);
+    setSeriesMsg("");
+    try {
+      const res = await api.adminGenerateStallsFromSeries(token);
+      setSeriesMsg(res.message || "Stalls generated.");
+      loadStalls();
+    } catch (err) {
+      setSeriesMsg(err.message || "Failed to generate stalls");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function seriesForCategory(code) {
+    return (mapInfo?.series || []).filter((s) => s.packageCode === code).map((s) => s.prefix).join(", ");
   }
 
   function holderLabel(s) {
@@ -221,10 +303,12 @@ export default function StallsPanel({ token }) {
   return (
     <div>
       <div className="card form-card" style={{ marginBottom: 24 }}>
-        <h3 style={{ marginBottom: 6 }}>Stall Map</h3>
+        <h3 style={{ marginBottom: 6 }}>Step 1 — Upload the venue layout</h3>
         <p style={{ fontSize: 13.5, color: "var(--text-muted)", marginBottom: 16 }}>
-          Upload a layout image showing stall numbers and zones — this is shown to exhibitors on the registration
-          page.
+          Upload the venue drawing as an image (PNG/JPG/WEBP) or a <strong>PDF</strong> (its first page is converted
+          automatically). This exact picture becomes the interactive map that exhibitors book from and the public
+          Stalls page shows — so use the final layout with every stall number (G1, G2, R1, R2…) printed on it.
+          {mapInfo?.sourceType === "pdf" && " The current map was converted from a PDF."}
         </p>
         {mapError && <div className="alert alert-error">{mapError}</div>}
         <div className="logo-upload-row">
@@ -240,7 +324,7 @@ export default function StallsPanel({ token }) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp"
+              accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
               onChange={handleMapFileChange}
             />
             <button
@@ -250,19 +334,117 @@ export default function StallsPanel({ token }) {
               onClick={handleMapUpload}
               disabled={!mapFile || mapUploading}
             >
-              {mapUploading ? "Uploading…" : "Upload Map"}
+              {mapUploading ? (mapFile?.type === "application/pdf" ? "Converting PDF…" : "Uploading…") : "Upload Layout"}
             </button>
+            {mapFile?.type === "application/pdf" && (
+              <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>PDF selected — preview appears after upload.</span>
+            )}
           </div>
         </div>
       </div>
 
       {mapUrl && (
         <div className="card form-card" style={{ marginBottom: 24 }}>
-          <h3 style={{ marginBottom: 6 }}>Place Stalls on Map</h3>
+          <h3 style={{ marginBottom: 6 }}>Step 2 — Which series is which category?</h3>
           <p style={{ fontSize: 13.5, color: "var(--text-muted)", marginBottom: 16 }}>
-            Pick a numbered category and a stall below, then click that stall's spot on the map. Exhibitors
-            pick their stall by tapping the same spot on the registration page — already-placed stalls in
-            this category show as green dots, the one you're about to place shows in gold.
+            The layout labels stalls with a letter series plus a number (for example <strong>G1, G2</strong> and{" "}
+            <strong>R1, R2</strong>). Tell us what each series means — e.g. <strong>G</strong> = Gold,{" "}
+            <strong>R</strong> = Regular — and whether the labels use a dash (G-1) or not (G1). Then{" "}
+            <strong>Generate stalls</strong> creates one record per stall at that category's rate-card price, named
+            exactly as on the drawing, so the online map matches the layout.
+          </p>
+          {seriesMsg && (
+            <div className="alert" style={{ background: "#eef6ff", color: "#1c4e8a", border: "1px solid #cfe3fb" }}>
+              {seriesMsg}
+            </div>
+          )}
+          {seriesRows.length === 0 && (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No series defined yet — add one per letter used on the layout.</p>
+          )}
+          {seriesRows.map((row, i) => {
+            const pkg = (config.stallPackages || []).find((p) => p.code === row.packageCode);
+            return (
+              <div key={i} className="series-row">
+                <div className="field">
+                  <label>Series on layout</label>
+                  <input
+                    placeholder="e.g. G"
+                    maxLength={4}
+                    value={row.prefix}
+                    onChange={(e) => updateSeriesRow(i, "prefix", e.target.value.toUpperCase())}
+                  />
+                </div>
+                <div className="field">
+                  <label>Means category</label>
+                  <select value={row.packageCode} onChange={(e) => updateSeriesRow(i, "packageCode", e.target.value)}>
+                    <option value="">Select…</option>
+                    {placeableCategories.map((p) => (
+                      <option key={p.code} value={p.code}>
+                        {p.label} — {p.stallCount} stalls · ₹{Number(p.rate).toLocaleString("en-IN")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Label style</label>
+                  <select value={row.separator || ""} onChange={(e) => updateSeriesRow(i, "separator", e.target.value)}>
+                    <option value="">{row.prefix || "G"}1, {row.prefix || "G"}2 …</option>
+                    <option value="-">{row.prefix || "G"}-1, {row.prefix || "G"}-2 …</option>
+                  </select>
+                </div>
+                <div className="field series-row-meta">
+                  <label>&nbsp;</label>
+                  <div style={{ fontSize: 12.5, color: "var(--text-muted)", paddingTop: 10 }}>
+                    {pkg ? `${row.prefix || "?"}${row.separator || ""}1 – ${row.prefix || "?"}${row.separator || ""}${pkg.stallCount}` : "—"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-danger-outline series-row-remove"
+                  style={{ padding: "6px 12px", fontSize: 12.5 }}
+                  onClick={() => removeSeriesRow(i)}
+                >
+                  Remove
+                </button>
+              </div>
+            );
+          })}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
+            <button type="button" className="btn btn-outline" style={{ padding: "8px 18px" }} onClick={addSeriesRow}>
+              + Add series
+            </button>
+            <button
+              type="button"
+              className="btn btn-dark"
+              style={{ padding: "8px 18px" }}
+              onClick={saveSeries}
+              disabled={seriesSaving || !seriesDirty}
+            >
+              {seriesSaving ? "Saving…" : "Save mapping"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ padding: "8px 18px" }}
+              onClick={generateStalls}
+              disabled={generating || seriesDirty || !(mapInfo?.series || []).length}
+              title={seriesDirty ? "Save the mapping first" : ""}
+            >
+              {generating ? "Generating…" : "Generate stalls from layout"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mapUrl && (
+        <div className="card form-card" style={{ marginBottom: 24 }}>
+          <h3 style={{ marginBottom: 6 }}>Step 3 — Place each stall on the layout</h3>
+          <p style={{ fontSize: 13.5, color: "var(--text-muted)", marginBottom: 16 }}>
+            Pick a category; the tool queues its stalls in order (G1, then G2, …). Click the matching printed
+            stall on the drawing — one click per stall, it advances automatically. That spot becomes the
+            marker exhibitors tap on the registration page and the public Stalls page. Already-placed stalls
+            show as green dots, the one you're placing shows in gold; click a placed stall again in the
+            dropdown to move it.
           </p>
           {placeMsg && (
             <div
@@ -277,11 +459,17 @@ export default function StallsPanel({ token }) {
               <label>Category</label>
               <select value={placeCategory} onChange={(e) => handlePlaceCategoryChange(e.target.value)}>
                 <option value="">Select a category…</option>
-                {placeableCategories.map((p) => (
-                  <option key={p.code} value={p.code}>
-                    {p.label}
-                  </option>
-                ))}
+                {placeableCategories.map((p) => {
+                  const prefixes = seriesForCategory(p.code);
+                  const count = stalls.filter((s) => s.packageCode === p.code).length;
+                  const placed = stalls.filter((s) => s.packageCode === p.code && s.mapX != null && s.mapY != null).length;
+                  return (
+                    <option key={p.code} value={p.code}>
+                      {p.label}
+                      {prefixes ? ` (${prefixes} series)` : ""} — {placed}/{count} placed
+                    </option>
+                  );
+                })}
               </select>
             </div>
             <div className="field">

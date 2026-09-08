@@ -4,6 +4,7 @@ controllers/stallController.js. One router, mirroring the old Express
 router's structure/comments closely so the permission model (see
 middleware/auth.py) stays easy to audit against the original.
 """
+import asyncio
 import csv
 import io
 import os
@@ -11,26 +12,28 @@ import base64
 from datetime import datetime
 
 import qrcode
-from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from config.db import get_db
-from config.event_config import EVENT
+from config.event_config import EVENT, find_stall_package
 from middleware.auth import (
     AdminPayload, require_admin, require_any_resource, require_full_access, require_resource, sign_token,
 )
 from middleware.rate_limit import rate_limit
-from middleware.upload import STALL_MAP_MAX_BYTES, save_upload
+from middleware.upload import MAP_TYPES, STALL_MAP_MAX_BYTES, read_upload, write_upload_bytes
 from models.admin import PERMISSIONS, AdminCreateRequest, AdminLoginRequest
 from models.common import serialize_doc, serialize_list, to_object_id, utcnow
+from models.enquiry import ENQUIRY_CSV_COLUMNS, ENQUIRY_STATUS_VALUES
 from models.exhibitor import EDITABLE_EXHIBITOR_FIELDS, EXHIBITOR_CSV_COLUMNS
 from models.stall import STALL_STATUS_VALUES, new_stall_document
-from models.stall_map import new_stall_map_document
+from models.stall_map import map_payload, new_stall_map_document, parse_series
 from models.visitor import VISITOR_CSV_COLUMNS
 from utils.email_templates import exhibitor_approved_email_html
 from utils.hashing import hash_password, verify_password
 from utils.invoice import build_exhibitor_invoice_pdf
+from utils.pdf_to_image import pdf_first_page_to_png
 from utils.mailer import send_mail
 from utils.whatsapp import send_whatsapp
 
@@ -71,13 +74,16 @@ async def stats(admin: AdminPayload = Depends(require_admin), db: AsyncIOMotorDa
     can_see_exhibitors = is_all or "exhibitors" in permissions or "invoicing" in permissions
     can_see_visitors = is_all or "visitors" in permissions
     can_see_checked_in = can_see_visitors or "scanning" in permissions
+    can_see_enquiries = is_all or "enquiries" in permissions
 
     exhibitor_count = await db.exhibitors.count_documents({}) if can_see_exhibitors else 0
     visitor_count = await db.visitors.count_documents({}) if can_see_visitors else 0
     checked_in_count = await db.visitors.count_documents({"checkedIn": True}) if can_see_checked_in else 0
+    new_enquiry_count = await db.enquiries.count_documents({"status": "new"}) if can_see_enquiries else 0
 
     return {"success": True, "data": {
         "exhibitorCount": exhibitor_count, "visitorCount": visitor_count, "checkedInCount": checked_in_count,
+        "newEnquiryCount": new_enquiry_count,
     }}
 
 
@@ -200,6 +206,27 @@ async def edit_exhibitor(
 
     updated = await db.exhibitors.find_one({"_id": oid})
     return {"success": True, "message": "Exhibitor updated", "data": serialize_doc(updated)}
+
+
+@router.delete("/exhibitors/{id}")
+async def delete_exhibitor(
+    id: str, admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Permanently removes an exhibitor registration. Any stall it was
+    holding or had booked is released back to "available" first so it can
+    be re-sold."""
+    oid = to_object_id(id)
+    exhibitor = await db.exhibitors.find_one({"_id": oid}) if oid else None
+    if not exhibitor:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+
+    if exhibitor.get("stallId"):
+        await db.stalls.update_one(
+            {"_id": exhibitor["stallId"], "$or": [{"heldBy": oid}, {"bookedBy": oid}]},
+            {"$set": {"status": "available", "heldBy": None, "bookedBy": None}},
+        )
+    await db.exhibitors.delete_one({"_id": oid})
+    return {"success": True, "message": "Exhibitor registration deleted and its stall released"}
 
 
 @router.post("/exhibitors/{id}/approve")
@@ -424,16 +451,98 @@ async def delete_stall(
     return {"success": True, "message": "Stall removed"}
 
 
+# Upload the venue layout as an image or a PDF (first page rendered to PNG).
+# An optional `series` form field (JSON array of {prefix, packageCode,
+# separator}) records which letter series on the drawing belongs to which
+# category; when omitted the previous map's mapping is carried forward so
+# re-uploading a corrected drawing doesn't wipe it.
 @router.post("/stalls/upload-map")
 async def upload_stall_map(
-    map: UploadFile = File(...),
+    map: UploadFile = File(...), series: str | None = Form(None),
     admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    url = await save_upload(map, "stall-maps", STALL_MAP_MAX_BYTES)
-    doc = new_stall_map_document(url.rsplit("/", 1)[-1], url)
+    parsed_series, err = parse_series(series)
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+
+    contents = await read_upload(
+        map, MAP_TYPES, STALL_MAP_MAX_BYTES, "Only PNG, JPG, WEBP images or a PDF are allowed for the layout",
+    )
+    is_pdf = map.content_type == "application/pdf"
+    if is_pdf:
+        try:
+            contents = await asyncio.to_thread(pdf_first_page_to_png, contents)
+        except Exception as conv_err:  # noqa: BLE001
+            print("[stalls] PDF conversion failed:", conv_err)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Couldn't render the PDF: {conv_err}. Try exporting the layout as a PNG/JPG and uploading that.",
+            )
+    url = write_upload_bytes(contents, "stall-maps", map.filename or "layout", force_ext=".png" if is_pdf else None)
+
+    previous = await db.stall_maps.find_one(sort=[("createdAt", -1)])
+    doc = new_stall_map_document(
+        url.rsplit("/", 1)[-1], url, source_type="pdf" if is_pdf else "image", original_filename=map.filename or "",
+        series=parsed_series if parsed_series is not None else (previous or {}).get("series") or [],
+    )
     result = await db.stall_maps.insert_one(doc)
     doc["_id"] = result.inserted_id
-    return {"success": True, "message": "Stall map uploaded", "data": {"url": doc["url"], "uploadedAt": serialize_doc(doc)["createdAt"]}}
+    return {
+        "success": True,
+        "message": "PDF layout converted and uploaded" if is_pdf else "Stall map uploaded",
+        "data": map_payload(doc),
+    }
+
+
+# Save/replace the series → category mapping on the current map.
+@router.put("/stalls/map-series")
+async def update_map_series(
+    payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    current = await db.stall_maps.find_one(sort=[("createdAt", -1)])
+    if not current:
+        raise HTTPException(status_code=404, detail="Upload a layout first")
+    parsed_series, err = parse_series(payload.get("series") if "series" in payload else [])
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+    await db.stall_maps.update_one({"_id": current["_id"]}, {"$set": {"series": parsed_series or [], "updatedAt": utcnow()}})
+    updated = await db.stall_maps.find_one({"_id": current["_id"]})
+    return {"success": True, "message": "Layout series saved", "data": map_payload(updated)}
+
+
+# Creates the stall records implied by the layout's series mapping: for each
+# series, prefix+separator+1 … up to that category's stallCount on the rate
+# card (or an explicit counts[prefix] override), at the category's rate.
+# Existing stall numbers are left untouched.
+@router.post("/stalls/generate-from-series")
+async def generate_stalls_from_series(
+    payload: dict = Body(default={}),
+    admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    current = await db.stall_maps.find_one(sort=[("createdAt", -1)])
+    if not current or not current.get("series"):
+        raise HTTPException(status_code=400, detail="Save the series → category mapping first")
+    counts = payload.get("counts") if isinstance(payload.get("counts"), dict) else {}
+    created, skipped = [], []
+    for s in current["series"]:
+        pkg = find_stall_package(s["packageCode"])
+        if not pkg:
+            continue
+        try:
+            override = int(counts.get(s["prefix"]) or 0)
+        except (TypeError, ValueError):
+            override = 0
+        count = override if override > 0 else (pkg.get("stallCount") or 0)
+        for i in range(1, count + 1):
+            stall_number = f"{s['prefix']}{s.get('separator') or ''}{i}".upper()
+            if await db.stalls.find_one({"stallNumber": stall_number}):
+                skipped.append(stall_number)
+                continue
+            await db.stalls.insert_one(new_stall_document(stall_number, s["packageCode"], pkg.get("rate") or 0, pkg["label"]))
+            created.append(stall_number)
+    message = f"{len(created)} stall(s) created" + (f", {len(skipped)} already existed" if skipped else "")
+    return {"success": True, "message": message, "data": {"created": created, "skipped": skipped}}
 
 
 # ---------- Visitors ----------
@@ -479,6 +588,73 @@ async def entrance_qr(admin: AdminPayload = Depends(require_resource("visitors")
     return {"success": True, "data": {"url": url, "qrDataUrl": qr_data_url}}
 
 
+# Fields an admin may edit on a visitor registration. Deliberately excludes
+# registrationCode (it's printed on the visitor's QR/ID card) and the
+# email/WhatsApp delivery flags.
+EDITABLE_VISITOR_FIELDS = [
+    "fullName", "email", "phone", "city", "organization", "designation",
+    "interests", "howDidYouHear", "numberOfGuests", "source", "checkedIn",
+]
+
+
+@router.patch("/visitors/{id}")
+async def edit_visitor(
+    id: str, payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_resource("visitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    visitor = await db.visitors.find_one({"_id": oid}) if oid else None
+    if not visitor:
+        raise HTTPException(status_code=404, detail="Visitor not found")
+
+    updates = {}
+    for field in EDITABLE_VISITOR_FIELDS:
+        if field not in payload or payload[field] is None:
+            continue
+        value = payload[field]
+        if field == "numberOfGuests":
+            try:
+                n = int(value)
+            except (TypeError, ValueError):
+                n = -1
+            if n < 1 or n > 10:
+                raise HTTPException(status_code=400, detail="Guests must be between 1 and 10")
+            updates["numberOfGuests"] = n
+        elif field == "source":
+            if value not in ("online", "onsite"):
+                raise HTTPException(status_code=400, detail="source must be 'online' or 'onsite'")
+            updates["source"] = value
+        elif field == "checkedIn":
+            flag = value is True or value == "true"
+            updates["checkedIn"] = flag
+            updates["checkedInAt"] = (visitor.get("checkedInAt") or utcnow()) if flag else None
+        elif field == "interests":
+            updates["interests"] = value if isinstance(value, list) else []
+        elif field == "email":
+            updates["email"] = str(value).strip().lower()
+        else:
+            updates[field] = str(value).strip()
+
+    if updates:
+        updates["updatedAt"] = utcnow()
+        await db.visitors.update_one({"_id": oid}, {"$set": updates})
+
+    updated = await db.visitors.find_one({"_id": oid})
+    return {"success": True, "message": "Visitor updated", "data": serialize_doc(updated)}
+
+
+@router.delete("/visitors/{id}")
+async def delete_visitor(
+    id: str, admin: AdminPayload = Depends(require_resource("visitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    visitor = await db.visitors.find_one({"_id": oid}) if oid else None
+    if not visitor:
+        raise HTTPException(status_code=404, detail="Visitor not found")
+    await db.visitors.delete_one({"_id": oid})
+    return {"success": True, "message": "Visitor registration deleted"}
+
+
 @router.post("/check-in")
 async def check_in_visitor(
     payload: dict = Body(...),
@@ -501,6 +677,83 @@ async def check_in_visitor(
     visitor["checkedIn"] = True
     visitor["checkedInAt"] = now
     return {"success": True, "message": "Checked in successfully", "data": serialize_doc(visitor)}
+
+
+# ---------- Enquiries (public Enquiry page) — "all" or "enquiries" ----------
+
+@router.get("/enquiries")
+async def list_enquiries(
+    search: str = "", page: int = 1, limit: int = 25, status: str | None = None,
+    admin: AdminPayload = Depends(require_resource("enquiries")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    query = _search_query(search, ["name", "email", "mobile", "details"])
+    if status in ENQUIRY_STATUS_VALUES:
+        query["status"] = status
+    skip = (page - 1) * limit
+    total = await db.enquiries.count_documents(query)
+    new_count = await db.enquiries.count_documents({"status": "new"})
+    items = await db.enquiries.find(query).sort("createdAt", -1).skip(skip).limit(limit).to_list(length=None)
+    return {"success": True, "data": serialize_list(items), "total": total, "newCount": new_count, "page": page, "limit": limit}
+
+
+@router.get("/enquiries/export")
+async def export_enquiries_csv(
+    admin: AdminPayload = Depends(require_resource("enquiries")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    items = await db.enquiries.find().sort("createdAt", -1).to_list(length=None)
+    return Response(
+        content=_to_csv(items, ENQUIRY_CSV_COLUMNS), media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=enquiries.csv"},
+    )
+
+
+@router.patch("/enquiries/{id}")
+async def update_enquiry(
+    id: str, payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_resource("enquiries")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Edit an enquiry's details and/or its status (new | handled)."""
+    oid = to_object_id(id)
+    enquiry = await db.enquiries.find_one({"_id": oid}) if oid else None
+    if not enquiry:
+        raise HTTPException(status_code=404, detail="Enquiry not found")
+
+    updates = {}
+    status = payload.get("status")
+    if "status" in payload:
+        if status not in ENQUIRY_STATUS_VALUES:
+            raise HTTPException(status_code=400, detail="status must be 'new' or 'handled'")
+        if status != enquiry.get("status"):
+            updates["status"] = status
+            updates["handledAt"] = utcnow() if status == "handled" else None
+    for field in ("name", "email", "mobile", "details"):
+        if field in payload and payload[field] is not None:
+            value = str(payload[field]).strip()
+            updates[field] = value.lower() if field == "email" else value
+
+    merged = {**enquiry, **updates}
+    if not all(merged.get(f) for f in ("name", "email", "mobile", "details")):
+        raise HTTPException(status_code=400, detail="Name, email, mobile and details are all required")
+
+    if updates:
+        updates["updatedAt"] = utcnow()
+        await db.enquiries.update_one({"_id": oid}, {"$set": updates})
+
+    updated = await db.enquiries.find_one({"_id": oid})
+    message = ("Marked as handled" if status == "handled" else "Reopened") if "status" in payload else "Enquiry updated"
+    return {"success": True, "message": message, "data": serialize_doc(updated)}
+
+
+@router.delete("/enquiries/{id}")
+async def delete_enquiry(
+    id: str, admin: AdminPayload = Depends(require_resource("enquiries")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    enquiry = await db.enquiries.find_one({"_id": oid}) if oid else None
+    if not enquiry:
+        raise HTTPException(status_code=404, detail="Enquiry not found")
+    await db.enquiries.delete_one({"_id": oid})
+    return {"success": True, "message": "Enquiry deleted"}
 
 
 # ---------- Admin user management ("all" permission only) ----------

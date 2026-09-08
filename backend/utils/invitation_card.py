@@ -53,7 +53,7 @@ def build_visitor_invitation_pdf(visitor: dict) -> bytes:
 
     c.setFillColor(WHITE)
     c.setFont("Helvetica", 12)
-    c.drawString(40, _top(96), f"SAIFEE BURHANI BUSINESS EXPO — {EVENT['eventCity'].upper()}")
+    c.drawString(40, _top(96), f"BUSINESS EXPO — {EVENT['eventCity'].upper()}")
 
     c.setStrokeColor(GOLD)
     c.setLineWidth(1)

@@ -9,7 +9,7 @@ import { useEventConfig } from "../hooks/useEventConfig";
 import roseImg from "../assets/roar-rose.png";
 import orangeImg from "../assets/roar-orange.png";
 import tigerImg from "../assets/roar-tiger.png";
-import tijaraatLogo from "../assets/tijaraat-logo.png";
+import economicAffairsLogo from "../assets/economic-affairs-logo.png";
 import dbohraLogo from "../assets/dbohra-logo.png";
 import syednaSermonImg from "../assets/syedna-sermon-badri-masjid.jpg";
 
@@ -155,8 +155,12 @@ export default function Home() {
 
             <div className="organizer-logos">
               <div className="organizer-logo-item">
-                <span className="organizer-logo-label">Organized By</span>
-                <img src={tijaraatLogo} alt="Idaarah al-Tijaarat al-Raabehah" className="organizer-logo-img" />
+                <span className="organizer-logo-label">Managed By</span>
+                <img
+                  src={economicAffairsLogo}
+                  alt="Dawoodi Bohra Department of Economic Affairs — Nagpur Jamiyat"
+                  className="organizer-logo-img organizer-logo-img-tall"
+                />
               </div>
               <div className="organizer-logo-divider" aria-hidden="true" />
               <div className="organizer-logo-item">

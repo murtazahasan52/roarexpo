@@ -105,7 +105,10 @@ async def send_mail(*, to: str, bcc: str | None = None, subject: str, html: str,
     msg = _build_message(
         to=to, bcc=bcc, subject=subject, html=html, attachments=attachments, from_name=from_name, from_address=user
     )
-    recipients = [to] + ([bcc] if bcc else [])
+    # `to`/`bcc` may be comma-separated lists (e.g. the enquiry notification
+    # goes to several inboxes) — the header keeps the string as-is, the SMTP
+    # envelope needs each address individually.
+    recipients = [a.strip() for a in f"{to},{bcc or ''}".split(",") if a.strip()]
 
     await asyncio.to_thread(_send_sync, msg, host, port, secure, user, password, recipients)
 

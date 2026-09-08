@@ -77,9 +77,11 @@ def test_visitor_register_invalid_email(s):
 
 
 # ---------- Exhibitor: public stalls ----------
-def test_public_stalls_requires_package(s):
+def test_public_stalls_all_no_package(s):
+    # NEW: without packageCode returns all stalls (used by full venue map)
     r = s.get(f"{API}/public/stalls")
-    assert r.status_code == 400
+    assert r.status_code == 200
+    assert isinstance(r.json().get("data"), list)
 
 
 def test_public_stall_map(s):

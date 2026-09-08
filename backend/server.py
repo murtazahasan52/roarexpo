@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 from config.db import connect_db, close_db  # noqa: E402
-from routers import admin, exhibitors, public, visitors  # noqa: E402
+from routers import admin, enquiries, exhibitors, public, visitors  # noqa: E402
 from utils.storage import get_object, init_storage  # noqa: E402
 
 UPLOAD_ROOT = pathlib.Path(__file__).resolve().parent / "uploads"
@@ -98,6 +98,7 @@ app.include_router(public.router)
 app.include_router(exhibitors.router)
 app.include_router(visitors.router)
 app.include_router(admin.router)
+app.include_router(enquiries.router)
 
 
 # ---------- Error handling ----------

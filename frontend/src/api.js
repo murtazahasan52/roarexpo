@@ -75,8 +75,10 @@ export const api = {
   getConfig: () => request("/public/config"),
   getStalls: (packageCode) => request(`/public/stalls${packageCode ? `?packageCode=${encodeURIComponent(packageCode)}` : ""}`),
   getStallMap: () => request("/public/stall-map"),
+  getStallDirectory: () => request("/public/stall-directory"),
   registerExhibitor: (payload) => requestForm("/exhibitors/register", { formData: toFormData(payload) }),
   registerVisitor: (payload) => request("/visitors/register", { method: "POST", body: payload }),
+  submitEnquiry: (payload) => request("/enquiries", { method: "POST", body: payload }),
   adminLogin: (payload) => request("/admin/login", { method: "POST", body: payload }),
   adminStats: (token) => request("/admin/stats", { token }),
   adminExhibitors: (token, params = "") => request(`/admin/exhibitors${params}`, { token }),
@@ -87,20 +89,34 @@ export const api = {
   adminApproveExhibitor: (token, id) => request(`/admin/exhibitors/${id}/approve`, { method: "POST", token }),
   adminRejectExhibitor: (token, id) => request(`/admin/exhibitors/${id}/reject`, { method: "POST", token }),
   adminEditExhibitor: (token, id, payload) => request(`/admin/exhibitors/${id}`, { method: "PATCH", body: payload, token }),
+  adminDeleteExhibitor: (token, id) => request(`/admin/exhibitors/${id}`, { method: "DELETE", token }),
+  adminEditVisitor: (token, id, payload) => request(`/admin/visitors/${id}`, { method: "PATCH", body: payload, token }),
+  adminDeleteVisitor: (token, id) => request(`/admin/visitors/${id}`, { method: "DELETE", token }),
   adminInvoiceUrl: (id) => `${BASE_URL}/admin/exhibitors/${id}/invoice`,
   exportUrl: (kind) => `${BASE_URL}/admin/${kind}/export`,
   adminListAdmins: (token) => request("/admin/admins", { token }),
   adminCreateAdmin: (token, payload) => request("/admin/admins", { method: "POST", body: payload, token }),
   adminDeleteAdmin: (token, id) => request(`/admin/admins/${id}`, { method: "DELETE", token }),
+  adminEnquiries: (token, params = "") => request(`/admin/enquiries${params}`, { token }),
+  // `payload` may carry { status } and/or edited fields { name, email, mobile, details }
+  adminUpdateEnquiry: (token, id, payload) =>
+    request(`/admin/enquiries/${id}`, { method: "PATCH", body: payload, token }),
+  adminDeleteEnquiry: (token, id) => request(`/admin/enquiries/${id}`, { method: "DELETE", token }),
   adminListStalls: (token) => request("/admin/stalls", { token }),
   adminCreateStalls: (token, stalls) => request("/admin/stalls", { method: "POST", body: { stalls }, token }),
   adminUpdateStall: (token, id, payload) => request(`/admin/stalls/${id}`, { method: "PATCH", body: payload, token }),
   adminDeleteStall: (token, id) => request(`/admin/stalls/${id}`, { method: "DELETE", token }),
-  adminUploadStallMap: (token, file) => {
+  // `file` may be an image or a PDF (first page is rendered server-side);
+  // `series` is an optional [{ prefix, packageCode, separator }] mapping.
+  adminUploadStallMap: (token, file, series) => {
     const fd = new FormData();
     fd.append("map", file);
+    if (series) fd.append("series", JSON.stringify(series));
     return requestForm("/admin/stalls/upload-map", { formData: fd, token });
   },
+  adminSaveMapSeries: (token, series) => request("/admin/stalls/map-series", { method: "PUT", body: { series }, token }),
+  adminGenerateStallsFromSeries: (token, counts = {}) =>
+    request("/admin/stalls/generate-from-series", { method: "POST", body: { counts }, token }),
 };
 
 export { BASE_URL };

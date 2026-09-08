@@ -409,6 +409,23 @@ p {
   gap: 10px;
 }
 
+/* Three header buttons (Enquiry / Visitor / Exhibitor) — slightly tighter than
+   body buttons so they fit beside the nav links on laptop widths. */
+.nav-cta .btn {
+  padding: 11px 20px;
+  font-size: 14px;
+}
+
+@media (max-width: 1120px) {
+  .nav-links {
+    gap: 18px;
+  }
+  .nav-cta .btn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}
+
 .nav-toggle {
   display: none;
   background: none;
@@ -1451,6 +1468,11 @@ p {
   background: #9aa1ad;
 }
 
+.stall-legend-dot.other {
+  background: #f3efe6;
+  border: 1px solid #d8d2c4;
+}
+
 .stall-pick-card.status-available {
   border-color: #bfe6cd;
   background: #f2fbf5;
@@ -1836,6 +1858,10 @@ p {
   height: 38px;
 }
 
+.organizer-logo-img-tall {
+  height: 72px;
+}
+
 .organizer-logo-divider {
   width: 1px;
   height: 44px;
@@ -1907,7 +1933,7 @@ p {
 
 .admin-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 18px;
   margin-bottom: 24px;
 }
@@ -2149,6 +2175,160 @@ tbody tr:last-child td {
   max-width: 400px;
   padding: 40px;
   border-top: 3px solid var(--gold-500);
+}
+
+/* Text-style button (e.g. "Read more" inside admin table cells) */
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--gold-700);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Read-only field display inside the exhibitor "View" modal */
+.field-readonly {
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--bg-cream);
+  font-size: 14px;
+  color: var(--text-heading);
+  min-height: 42px;
+  word-break: break-word;
+}
+
+.field-empty {
+  color: var(--text-muted);
+}
+
+/* Logo / product image thumbnails inside the exhibitor modal */
+.image-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.image-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.image-thumb img {
+  width: 110px;
+  height: 110px;
+  object-fit: contain;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* Small red outline "danger" action button used for Delete rows */
+.btn-danger-outline {
+  border-color: var(--rose-500);
+  color: var(--rose-500);
+}
+
+/* Layout wizard: series → category rows (admin Stalls & Map) */
+.series-row {
+  display: grid;
+  grid-template-columns: 120px 1.6fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border-soft);
+}
+
+.series-row .field {
+  margin-bottom: 0;
+}
+
+.series-row-remove {
+  margin-bottom: 6px;
+}
+
+@media (max-width: 760px) {
+  .series-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .series-row-meta {
+    display: none;
+  }
+}
+
+/* Markers for stalls outside the category the exhibitor chose — shown so
+   the whole venue reads like the printed layout, but not selectable */
+.map-marker.other-category {
+  background: #f3efe6;
+  border-color: #d8d2c4;
+  color: #8a8f9c;
+  cursor: default;
+  opacity: 0.85;
+  box-shadow: none;
+}
+
+.map-marker.other-category:hover {
+  transform: translate(-50%, -50%);
+}
+
+/* Public Stalls page: hover card with the stall's booking details */
+.map-tooltip {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, calc(-100% - 14px));
+  min-width: 180px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--navy-900);
+  color: #fff;
+  font-size: 12.5px;
+  line-height: 1.45;
+  box-shadow: 0 12px 30px rgba(12, 26, 51, 0.28);
+  pointer-events: none;
+}
+
+.map-tooltip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  background: var(--navy-900);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.map-tooltip strong {
+  display: block;
+  font-size: 13.5px;
+  color: var(--gold-400);
+}
+
+.map-tooltip .tip-muted {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.map-marker.is-hover {
+  transform: translate(-50%, -50%) scale(1.15);
+  z-index: 4;
+}
+
+.stall-directory-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin: 14px 0 18px;
 }
 
 /* ---------- Floating WhatsApp button ---------- */

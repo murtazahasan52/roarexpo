@@ -1,7 +1,7 @@
 // Mirrors backend/config/eventConfig.js so the site still renders
 // sensible content if the API hasn't loaded yet (or is briefly down).
 export const fallbackConfig = {
-  eventName: "ROAR — Saifee Burhani Business Expo",
+  eventName: "ROAR — Business Expo Nagpur",
   eventCity: "Nagpur",
   eventTagline: "RISE • OPPORTUNITY • AMBITION • REACH",
   eventDatesLabel: "8 – 10 January 2027",
@@ -11,7 +11,7 @@ export const fallbackConfig = {
   venueMapUrl: "https://www.google.com/maps/search/?api=1&query=MSB+Ground+Nagpur",
   totalStalls: "100+",
   organizers: [
-    { name: "Idaarah al-Tijaarat al-Raabehah", tagline: "Economic Affairs Committee" },
+    { name: "Dawoodi Bohra Department of Economic Affairs", tagline: "Nagpur Jamiyat" },
   ],
   contact: {
     whatsapp: "+91 92841 82675",

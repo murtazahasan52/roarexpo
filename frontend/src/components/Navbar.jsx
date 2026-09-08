@@ -6,6 +6,7 @@ const links = [
   { to: "/", label: "Home", end: true },
   { to: "/#about", label: "About" },
   { to: "/#categories", label: "Categories" },
+  { to: "/stalls", label: "Stalls" },
   { to: "/contact", label: "Contact" },
 ];
 
@@ -39,10 +40,16 @@ export default function Navbar() {
             <NavLink to="/register/visitor" className="btn btn-outline" onClick={() => setOpen(false)}>
               Visit
             </NavLink>
+            <NavLink to="/enquiry" className="btn btn-outline" onClick={() => setOpen(false)}>
+              Enquiry
+            </NavLink>
           </div>
         </nav>
 
         <div className="nav-cta">
+          <NavLink to="/enquiry" className="btn btn-outline">
+            Enquiry
+          </NavLink>
           <NavLink to="/register/visitor" className="btn btn-outline">
             Register as Visitor
           </NavLink>

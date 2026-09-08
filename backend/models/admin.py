@@ -18,7 +18,8 @@ from pydantic import BaseModel, EmailStr, field_validator
 # "scanning"         — gate-staff access: QR/code check-in only, no visitor
 #                       list or export
 # "invoicing"        — generate/view stall booking-summary invoices
-PERMISSIONS = ["all", "exhibitors", "stall-inventory", "visitors", "scanning", "invoicing"]
+# "enquiries"        — read/handle general enquiries from the public Enquiry page
+PERMISSIONS = ["all", "exhibitors", "stall-inventory", "visitors", "scanning", "invoicing", "enquiries"]
 
 
 def has_permission(permissions: list[str] | None, permission: str) -> bool:

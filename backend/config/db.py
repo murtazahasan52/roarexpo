@@ -51,6 +51,8 @@ async def _ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db.visitors.create_index("registrationCode", unique=True)
     await db.visitors.create_index("email")
     await db.stalls.create_index("stallNumber", unique=True)
+    await db.enquiries.create_index("email")
+    await db.enquiries.create_index("status")
 
 
 async def close_db() -> None:

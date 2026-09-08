@@ -15,8 +15,8 @@ export default function Footer() {
               ROAR
             </span>
             <p style={{ marginTop: 12, fontSize: 14, maxWidth: 280 }}>
-              Saifee Burhani Business Expo, {config.eventCity}. A stronger business community, for a
-              brighter tomorrow.
+              Business Expo &ndash; {config.eventCity}. Managed by Dawoodi Bohra Department of Economic Affairs
+              {config.eventCity}. A stronger business community, for a brighter tomorrow.
             </p>
           </div>
 

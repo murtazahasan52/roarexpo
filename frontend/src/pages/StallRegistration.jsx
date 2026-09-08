@@ -49,6 +49,7 @@ export default function StallRegistration() {
   const [productImagePreviews, setProductImagePreviews] = useState([]);
   const [stallMapUrl, setStallMapUrl] = useState("");
   const [categoryStalls, setCategoryStalls] = useState([]);
+  const [allStalls, setAllStalls] = useState([]); // every placed stall, all categories — drawn as the full layout
   const [stallsLoading, setStallsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -63,6 +64,12 @@ export default function StallRegistration() {
       .getStallMap()
       .then((res) => setStallMapUrl(res.data?.url || ""))
       .catch(() => setStallMapUrl(""));
+    // The whole venue is drawn (every category's placed stalls) so the map
+    // reads like the printed layout; only the chosen category is selectable.
+    api
+      .getStalls()
+      .then((res) => setAllStalls((res.data || []).filter((s) => s.mapX != null && s.mapY != null)))
+      .catch(() => setAllStalls([]));
   }, []);
 
   // Whenever a numbered-stall category is chosen, fetch every stall of that
@@ -148,9 +155,15 @@ export default function StallRegistration() {
   const selectedPackage = (config.stallPackages || []).find((p) => p.code === form.stallPackage);
   const selectedStall = categoryStalls.find((s) => s.stallNumber === form.stallNumber);
   const placeableStalls = categoryStalls.filter((s) => s.mapX != null && s.mapY != null);
+  const otherCategoryStalls = allStalls.filter((s) => s.packageCode !== form.stallPackage);
+  const availableInCategory = placeableStalls.filter((s) => s.status === "available");
 
   function formatRate(n) {
     return `₹${Number(n).toLocaleString("en-IN")}`;
+  }
+
+  function packageLabel(code) {
+    return (config.stallPackages || []).find((p) => p.code === code)?.label || code;
   }
 
   function stallStatusLabel(stall) {
@@ -380,9 +393,27 @@ export default function StallRegistration() {
                         <span className="stall-legend-item">
                           <span className="stall-legend-dot blocked" /> Unavailable
                         </span>
+                        <span className="stall-legend-item">
+                          <span className="stall-legend-dot other" /> Other categories
+                        </span>
                       </div>
+                      <p style={{ fontSize: 13, color: "var(--text-heading)", margin: "0 0 8px" }}>
+                        <strong>{availableInCategory.length}</strong> {selectedPackage.label.replace(/ Stall$/, "")} stall
+                        {availableInCategory.length === 1 ? "" : "s"} available — tap a green one to select it.
+                      </p>
                       <div className="map-picker-wrap">
                         <img src={stallMapUrl} alt="Venue stall map" className="map-picker-img" />
+                        {otherCategoryStalls.map((s) => (
+                          <div
+                            key={`other-${s.stallNumber}`}
+                            className="map-marker other-category"
+                            style={{ left: `${s.mapX}%`, top: `${s.mapY}%` }}
+                            title={`${s.stallNumber} — ${packageLabel(s.packageCode)} (choose that category to book it)`}
+                            aria-disabled
+                          >
+                            {s.stallNumber}
+                          </div>
+                        ))}
                         {placeableStalls.map((s) => {
                           const selectable = s.status === "available";
                           return (

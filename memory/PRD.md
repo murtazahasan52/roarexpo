@@ -40,3 +40,8 @@ Event registration system for ROAR Saifee Burhani Business Expo (Nagpur, Jan 202
 - 2026-06: Fixed hero ROAR logo centering (display:block + auto margins) — verified 0px offset (iteration_3).
 - 2026-06: Added floating WhatsApp button on all public pages linking to wa.me/919284182675 — verified (iteration_3).
 - 2026-06: EMAIL NOW WORKING — Gmail App Password for mkt@roarexpo.com accepted (SMTP login OK, test email delivered). Verified live visitor (QR ID card) + exhibitor (confirmation) registrations send email with no emailError. roarexpo.com confirmed on Google Workspace (MX=google).
+- 2026-06: Applied user zip #1 (rebrand): navbar + hero now "Business Expo – Nagpur" + new "Managed by Dawoodi Bohra Department of Economic Affairs" line (.hero-managed-by).
+- 2026-06: Removed duplicate "Enquiry" nav link (kept the Enquiry button).
+- 2026-06: Applied large user zip #2 (features): Enquiry system (public /enquiry + admin EnquiriesPanel), EntranceQRPanel, AdminsPanel, economic-affairs branding.
+- 2026-06: Applied user zip #3 (features): PDF stall-map upload (pypdfium2 4.30.0 → PNG), series→category mapping (map-series), generate-stalls-from-series, public /stalls directory page (StallDirectory) + /api/public/stall-directory, admin edit/delete for visitors + exhibitors + enquiries (releases held stalls on exhibitor delete). Re-merged Emergent object storage into upload.py (save_upload/read_upload/write_upload_bytes → /api/files URLs) + admin stall-map handler; re-applied WhatsApp CSS, hero logo centering, and Navbar inline-style CTA fix that the zips reverted.
+- 2026-06: Testing agent iteration_4: backend 33/33, frontend 100% acceptance. Deployment readiness: PASS (deployment_agent, no blockers). Ready for the platform Deploy button.
