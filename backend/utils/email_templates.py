@@ -193,3 +193,88 @@ def enquiry_notification_html(enquiry: dict) -> str:
       <strong>Enquiries</strong> tab, where it can be marked as handled.</p>
   """
     return _wrap(inner)
+
+
+def enquiry_acknowledgement_html(enquiry: dict) -> str:
+    """Auto-reply to the person who sent an enquiry: a branded 'we got it'
+    with their own message quoted back, so they know what they asked and
+    whom to expect a reply from."""
+    first_name = (str(enquiry.get("name") or "").strip().split(" ") or [""])[0]
+    inner = f"""
+    <h2 style="margin-top:0;color:#0c1a33;">Thanks — we've received your enquiry</h2>
+    <p>Dear {_esc(first_name or enquiry.get('name'))},</p>
+    <p>Thank you for getting in touch with <strong>{EVENT['eventName']}</strong>. Your message has reached the
+      organizing team and one of us will reply to you shortly &mdash; usually within one working day.</p>
+
+    <div style="margin:18px 0;padding:14px 18px;background:#f8f6f1;border-left:3px solid #f2a93b;">
+      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Your enquiry</div>
+      <div style="white-space:pre-wrap;">{_esc(enquiry.get('details'))}</div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin:0 0 18px;">
+      <tr><td style="padding:4px 0;color:#666;width:140px;">We'll reply to</td><td style="padding:4px 0;">{_esc(enquiry.get('email'))}</td></tr>
+      <tr><td style="padding:4px 0;color:#666;">Or call / WhatsApp</td><td style="padding:4px 0;">{_esc(enquiry.get('mobile'))}</td></tr>
+    </table>
+
+    <p>Meanwhile, you're welcome to explore the stall categories and venue layout on our website, or
+      WhatsApp us at <strong>{EVENT['contact']['whatsapp']}</strong> (message only &mdash; no calls) if it's urgent.</p>
+
+    <p style="margin-bottom:0;">Warm regards,<br/>Team ROAR Expo<br/>
+      <span style="color:#666;font-size:12px;">{EVENT['organizers'][0]['name'] if EVENT.get('organizers') else ''}</span></p>
+  """
+    return _wrap(inner)
+
+
+def exhibitor_alert_html(exhibitor: dict) -> str:
+    """Instant heads-up to the organizing team: a new exhibitor registration
+    is waiting for approval."""
+    pkg = find_stall_package(exhibitor.get("stallPackage"))
+    stall_rate = exhibitor.get("stallRate")
+    inner = f"""
+    <h2 style="margin-top:0;color:#0c1a33;">New exhibitor registration</h2>
+    <p><strong>{_esc(exhibitor.get('companyName'))}</strong> has just registered for a stall at {EVENT['eventName']}
+      and is <strong>waiting for approval</strong> in the admin dashboard.</p>
+
+    <table style="width:100%;border-collapse:collapse;margin:18px 0;">
+      <tr><td style="padding:6px 0;color:#666;width:160px;">Registration ID</td><td style="padding:6px 0;font-weight:bold;">{_esc(exhibitor.get('registrationCode'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Company</td><td style="padding:6px 0;">{_esc(exhibitor.get('companyName'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Contact person</td><td style="padding:6px 0;">{_esc(exhibitor.get('contactPerson'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Email</td><td style="padding:6px 0;"><a href="mailto:{_esc(exhibitor.get('email'))}" style="color:#0c1a33;">{_esc(exhibitor.get('email'))}</a></td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Mobile</td><td style="padding:6px 0;">{_esc(exhibitor.get('mobile'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Category</td><td style="padding:6px 0;">{_esc(exhibitor.get('category'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Stall package</td><td style="padding:6px 0;">{_esc(pkg['label'] if pkg else exhibitor.get('stallPackage'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Stall number</td><td style="padding:6px 0;">{_esc(exhibitor.get('stallNumber') or 'To be assigned')}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Stall rate</td><td style="padding:6px 0;">{f"₹{stall_rate}" if stall_rate is not None else "To be confirmed"}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Number of stalls</td><td style="padding:6px 0;">{_esc(exhibitor.get('numberOfStalls'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;vertical-align:top;">Products / services</td><td style="padding:6px 0;white-space:pre-wrap;">{_esc(exhibitor.get('productsServices') or '—')}</td></tr>
+    </table>
+
+    <p style="margin-bottom:0;color:#666;font-size:12px;">Open the admin dashboard &rarr; <strong>Exhibitors</strong> to view the full
+      registration, edit it, and approve or reject it.</p>
+  """
+    return _wrap(inner)
+
+
+def visitor_alert_html(visitor: dict) -> str:
+    """Instant heads-up to the organizing team: a new visitor registered."""
+    interests = ", ".join(visitor.get("interests") or []) or "—"
+    inner = f"""
+    <h2 style="margin-top:0;color:#0c1a33;">New visitor registration</h2>
+    <p><strong>{_esc(visitor.get('fullName'))}</strong> has just registered to visit {EVENT['eventName']}.</p>
+
+    <table style="width:100%;border-collapse:collapse;margin:18px 0;">
+      <tr><td style="padding:6px 0;color:#666;width:160px;">Registration code</td><td style="padding:6px 0;font-weight:bold;">{_esc(visitor.get('registrationCode'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Name</td><td style="padding:6px 0;">{_esc(visitor.get('fullName'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Email</td><td style="padding:6px 0;"><a href="mailto:{_esc(visitor.get('email'))}" style="color:#0c1a33;">{_esc(visitor.get('email'))}</a></td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Phone</td><td style="padding:6px 0;">{_esc(visitor.get('phone'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">City</td><td style="padding:6px 0;">{_esc(visitor.get('city') or '—')}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Organization</td><td style="padding:6px 0;">{_esc(visitor.get('organization') or '—')}{(' · ' + _esc(visitor.get('designation'))) if visitor.get('designation') else ''}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Guests</td><td style="padding:6px 0;">{_esc(visitor.get('numberOfGuests') or 1)}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Interests</td><td style="padding:6px 0;">{_esc(interests)}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Heard about us via</td><td style="padding:6px 0;">{_esc(visitor.get('howDidYouHear') or '—')}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Source</td><td style="padding:6px 0;">{_esc(visitor.get('source') or 'online')}</td></tr>
+    </table>
+
+    <p style="margin-bottom:0;color:#666;font-size:12px;">The full list is in the admin dashboard &rarr; <strong>Visitors</strong>.</p>
+  """
+    return _wrap(inner)

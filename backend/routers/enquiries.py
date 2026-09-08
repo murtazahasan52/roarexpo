@@ -10,14 +10,12 @@ from config.db import get_db
 from config.event_config import EVENT
 from middleware.rate_limit import rate_limit
 from models.enquiry import EnquiryRequest, new_enquiry_document
-from utils.email_templates import enquiry_notification_html
+from utils.email_templates import enquiry_acknowledgement_html, enquiry_notification_html
 from utils.mailer import send_mail
+from utils.notify import organizer_recipients
 
 router = APIRouter(prefix="/api/enquiries", tags=["enquiries"])
 
-# Where new enquiries are emailed. Comma-separated, overridable via .env so
-# the inboxes can change without a code edit.
-DEFAULT_ENQUIRY_RECIPIENTS = "admin@roarexpo.com,mkt@roarexpo.com"
 
 _enquiry_limiter = rate_limit(
     "enquiry", max_requests=10, window_seconds=15 * 60,
@@ -26,8 +24,13 @@ _enquiry_limiter = rate_limit(
 
 
 def enquiry_recipients() -> str:
-    raw = os.environ.get("ENQUIRY_NOTIFY_EMAILS") or DEFAULT_ENQUIRY_RECIPIENTS
-    return ", ".join(e.strip() for e in raw.split(",") if e.strip())
+    # Where new enquiries are emailed — ORGANIZER_NOTIFY_EMAILS / ENQUIRY_NOTIFY_EMAILS
+    # in .env, else the built-in admin@/mkt@ inboxes (see utils/notify.py).
+    return organizer_recipients()
+
+
+def auto_reply_enabled() -> bool:
+    return (os.environ.get("ENQUIRY_AUTO_REPLY") or "true").strip().lower() not in ("false", "0", "off", "no")
 
 
 @router.post("", dependencies=[Depends(_enquiry_limiter)])
@@ -51,6 +54,19 @@ async def submit_enquiry(payload: EnquiryRequest, db: AsyncIOMotorDatabase = Dep
         except Exception as mail_err:  # noqa: BLE001
             print("[enquiry] Failed to send notification email:", mail_err)
             await db.enquiries.update_one({"_id": doc["_id"]}, {"$set": {"emailError": str(mail_err)}})
+
+        # Friendly confirmation back to the sender (ENQUIRY_AUTO_REPLY=false to turn off).
+        if auto_reply_enabled():
+            try:
+                await send_mail(
+                    to=doc["email"],
+                    subject=f"We've received your enquiry — {EVENT['eventName']}",
+                    html=enquiry_acknowledgement_html(doc),
+                )
+                await db.enquiries.update_one({"_id": doc["_id"]}, {"$set": {"ackSent": True}})
+            except Exception as mail_err:  # noqa: BLE001
+                print("[enquiry] Failed to send acknowledgement email:", mail_err)
+                await db.enquiries.update_one({"_id": doc["_id"]}, {"$set": {"ackError": str(mail_err)}})
 
         return {
             "success": True,

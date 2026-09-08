@@ -35,13 +35,14 @@ async function openPDF(url, token) {
   setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
 }
 
-function StatCard({ label, value }) {
+function StatCard({ label, value, sub }) {
   return (
     <div className="card admin-stat-card">
       <div className="admin-stat-num">
         <CountUp value={value} />
       </div>
       <div className="admin-stat-label">{label}</div>
+      {sub && <div className="admin-stat-sub">{sub}</div>}
     </div>
   );
 }
@@ -94,7 +95,7 @@ export default function AdminDashboard() {
   const canSeeEnquiries = hasAny(permissions, "enquiries");
 
   const [tab, setTab] = useState(availableTabs[0]);
-  const [stats, setStats] = useState({ exhibitorCount: 0, visitorCount: 0, checkedInCount: 0, newEnquiryCount: 0 });
+  const [stats, setStats] = useState({ exhibitorCount: 0, approvedExhibitorCount: 0, pendingExhibitorCount: 0, visitorCount: 0, checkedInCount: 0, newEnquiryCount: 0 });
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -275,7 +276,13 @@ export default function AdminDashboard() {
 
       <div className="container" style={{ paddingTop: 32, paddingBottom: 60 }}>
         <div className="admin-stats">
-          {canSeeExhibitorsList && <StatCard label="Exhibitor Registrations" value={stats.exhibitorCount} />}
+          {canSeeExhibitorsList && (
+            <StatCard
+              label="Approved Exhibitors"
+              value={stats.approvedExhibitorCount || 0}
+              sub={`${stats.pendingExhibitorCount || 0} pending approval · ${stats.exhibitorCount || 0} total`}
+            />
+          )}
           {canSeeVisitors && <StatCard label="Visitor Registrations" value={stats.visitorCount} />}
           {canSeeCheckedInStat && <StatCard label="Visitors Checked In" value={stats.checkedInCount} />}
           {canSeeEnquiries && <StatCard label="New Enquiries" value={stats.newEnquiryCount || 0} />}

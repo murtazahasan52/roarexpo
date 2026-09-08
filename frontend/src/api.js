@@ -115,6 +115,10 @@ export const api = {
     return requestForm("/admin/stalls/upload-map", { formData: fd, token });
   },
   adminSaveMapSeries: (token, series) => request("/admin/stalls/map-series", { method: "PUT", body: { series }, token }),
+  adminDetectLayout: (token) => request("/admin/stalls/detect-layout", { method: "POST", token }),
+  // stalls: [{ stallNumber, packageCode, mapX, mapY }] — creates/updates them with positions
+  adminApplyLayout: (token, series, stalls) =>
+    request("/admin/stalls/apply-layout", { method: "POST", body: { series, stalls }, token }),
   adminGenerateStallsFromSeries: (token, counts = {}) =>
     request("/admin/stalls/generate-from-series", { method: "POST", body: { counts }, token }),
 };

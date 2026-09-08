@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { BASE_URL } from "../api";
 import { useEventConfig } from "../hooks/useEventConfig";
+import LayoutApplyModal from "./LayoutApplyModal";
+import ZoomableMap from "./ZoomableMap";
 
 const STATUS_LABELS = {
   available: "Available",
@@ -55,6 +57,11 @@ export default function StallsPanel({ token }) {
   const [seriesSaving, setSeriesSaving] = useState(false);
   const [seriesMsg, setSeriesMsg] = useState("");
   const [generating, setGenerating] = useState(false);
+
+  // ---------- Auto-detected layout (confirm once, then apply) ----------
+  const [detection, setDetection] = useState(null); // result of upload / "Detect stalls"
+  const [detecting, setDetecting] = useState(false);
+  const [applyMsg, setApplyMsg] = useState("");
 
   // ---------- Place Stalls on Map ----------
   const [placeCategory, setPlaceCategory] = useState("");
@@ -182,6 +189,9 @@ export default function StallsPanel({ token }) {
         setMapInfo(res.data);
         setSeriesRows((res.data.series || []).map((s) => ({ ...s })));
         setSeriesDirty(false);
+        // The server has already looked for stall boxes on the new drawing —
+        // open the one-time confirmation so the admin can apply them.
+        if (res.data.detection) setDetection(res.data.detection);
       }
       setMapFile(null);
       setMapPreview("");
@@ -191,6 +201,26 @@ export default function StallsPanel({ token }) {
     } finally {
       setMapUploading(false);
     }
+  }
+
+  async function handleDetect() {
+    setDetecting(true);
+    setApplyMsg("");
+    try {
+      const res = await api.adminDetectLayout(token);
+      setDetection(res.data?.detection || { ok: false, boxes: [], rows: [], prefixes: [] });
+    } catch (err) {
+      setApplyMsg(err.message || "Failed to detect stalls");
+    } finally {
+      setDetecting(false);
+    }
+  }
+
+  function handleApplied(message) {
+    setDetection(null);
+    setApplyMsg(message);
+    loadStalls();
+    loadMap();
   }
 
   function updateSeriesRow(index, field, value) {
@@ -261,6 +291,7 @@ export default function StallsPanel({ token }) {
 
   const placeableCategories = (config.stallPackages || []).filter((p) => p.hasStallPicker);
   const categoryStallsForPlacement = placeCategory ? stalls.filter((s) => s.packageCode === placeCategory) : [];
+  const unplacedForPlacement = categoryStallsForPlacement.filter((s) => s.mapX == null || s.mapY == null);
 
   function handlePlaceCategoryChange(code) {
     setPlaceCategory(code);
@@ -270,19 +301,24 @@ export default function StallsPanel({ token }) {
     setPlaceStallId(firstUnplaced ? firstUnplaced._id : catStalls[0]?._id || "");
   }
 
-  async function handlePlaceClick(e) {
-    if (!placeStallId || !mapUrl || placingCoord) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const xPct = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
-    const yPct = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
-    const mapX = Number(xPct.toFixed(2));
-    const mapY = Number(yPct.toFixed(2));
-    const placedStallNumber = categoryStallsForPlacement.find((s) => s._id === placeStallId)?.stallNumber;
+  // Percent position of a pointer/drop point inside the map wrapper.
+  function pointToPercent(wrapEl, clientX, clientY) {
+    const rect = wrapEl.getBoundingClientRect();
+    const xPct = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
+    const yPct = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100));
+    return { mapX: Number(xPct.toFixed(2)), mapY: Number(yPct.toFixed(2)) };
+  }
+
+  // Saves a spot for one stall (click-to-place, drag a chip onto the map, or
+  // drag a marker to a better spot) and queues the next unplaced stall.
+  async function placeStallAt(stallId, { mapX, mapY }) {
+    if (!stallId || !mapUrl || placingCoord) return;
+    const placedStallNumber = stalls.find((s) => s._id === stallId)?.stallNumber;
 
     setPlacingCoord(true);
     setPlaceMsg("");
     try {
-      await api.adminUpdateStall(token, placeStallId, { mapX, mapY });
+      await api.adminUpdateStall(token, stallId, { mapX, mapY });
       const res = await api.adminListStalls(token);
       setStalls(res.data);
       const catStalls = res.data.filter((s) => s.packageCode === placeCategory);
@@ -290,7 +326,7 @@ export default function StallsPanel({ token }) {
       setPlaceStallId(nextUnplaced ? nextUnplaced._id : "");
       setPlaceMsg(
         nextUnplaced
-          ? `${placedStallNumber || "Stall"} placed — now click the spot for ${nextUnplaced.stallNumber}.`
+          ? `${placedStallNumber || "Stall"} placed — now click the spot for ${nextUnplaced.stallNumber}, or drag it from the list.`
           : `${placedStallNumber || "Stall"} placed — every stall in this category now has a spot on the map.`
       );
     } catch (err) {
@@ -300,16 +336,65 @@ export default function StallsPanel({ token }) {
     }
   }
 
+  function handlePlaceClick(e) {
+    if (!placeStallId) return;
+    placeStallAt(placeStallId, pointToPercent(e.currentTarget, e.clientX, e.clientY));
+  }
+
+  // Drag an unplaced stall chip onto the drawing (HTML5 drag & drop).
+  function handleMapDragOver(e) {
+    if (e.dataTransfer.types.includes("text/stall-id")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    }
+  }
+  function handleMapDrop(e) {
+    const id = e.dataTransfer.getData("text/stall-id");
+    if (!id) return;
+    e.preventDefault();
+    placeStallAt(id, pointToPercent(e.currentTarget, e.clientX, e.clientY));
+  }
+
+  // Drag a marker that is already on the map to a new spot (pointer events,
+  // so it works with a finger too).
+  const [dragging, setDragging] = useState(null); // { id, mapX, mapY }
+  function handleMarkerPointerDown(e, stall) {
+    if (e.button != null && e.button !== 0) return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging({ id: stall._id, mapX: stall.mapX, mapY: stall.mapY, startX: e.clientX, startY: e.clientY, moved: false });
+  }
+  function handleMarkerPointerMove(e) {
+    if (!dragging || dragging.id !== e.currentTarget.dataset.id) return;
+    const moved = dragging.moved || Math.hypot(e.clientX - dragging.startX, e.clientY - dragging.startY) > 4;
+    if (!moved) return;
+    const pos = pointToPercent(e.currentTarget.parentElement, e.clientX, e.clientY);
+    setDragging((d) => ({ ...d, ...pos, moved: true }));
+  }
+  function handleMarkerPointerUp(e) {
+    if (!dragging || dragging.id !== e.currentTarget.dataset.id) return;
+    const d = dragging;
+    setDragging(null);
+    if (d.moved) placeStallAt(d.id, { mapX: d.mapX, mapY: d.mapY });
+    else setPlaceStallId(d.id); // a plain tap selects that stall for re-placing by click
+  }
+
   return (
     <div>
       <div className="card form-card" style={{ marginBottom: 24 }}>
         <h3 style={{ marginBottom: 6 }}>Step 1 — Upload the venue layout</h3>
         <p style={{ fontSize: 13.5, color: "var(--text-muted)", marginBottom: 16 }}>
           Upload the venue drawing as an image (PNG/JPG/WEBP) or a <strong>PDF</strong> (its first page is converted
-          automatically). This exact picture becomes the interactive map that exhibitors book from and the public
-          Stalls page shows — so use the final layout with every stall number (G1, G2, R1, R2…) printed on it.
+          automatically). The stalls drawn on it — and the numbers printed inside them (G1, G2, R1, R2…) — are
+          <strong> detected automatically</strong>; you'll be asked once which series is which category, then every
+          stall is created with its position and the map goes live for exhibitors and the public Stalls page.
           {mapInfo?.sourceType === "pdf" && " The current map was converted from a PDF."}
         </p>
+        {applyMsg && (
+          <div className="alert" style={{ background: "#eef6ff", color: "#1c4e8a", border: "1px solid #cfe3fb" }}>
+            {applyMsg}
+          </div>
+        )}
         {mapError && <div className="alert alert-error">{mapError}</div>}
         <div className="logo-upload-row">
           {(mapPreview || mapUrl) && (
@@ -339,16 +424,38 @@ export default function StallsPanel({ token }) {
             {mapFile?.type === "application/pdf" && (
               <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>PDF selected — preview appears after upload.</span>
             )}
+            {mapUrl && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ padding: "8px 18px", alignSelf: "flex-start" }}
+                onClick={handleDetect}
+                disabled={detecting}
+                title="Re-run stall detection on the current layout"
+              >
+                {detecting ? "Detecting…" : "Detect stalls on this layout"}
+              </button>
+            )}
           </div>
         </div>
       </div>
 
+      {detection && (
+        <LayoutApplyModal
+          token={token}
+          mapUrl={`${FILE_ORIGIN}${mapUrl}`}
+          detection={detection}
+          onClose={() => setDetection(null)}
+          onApplied={handleApplied}
+        />
+      )}
+
       {mapUrl && (
         <div className="card form-card" style={{ marginBottom: 24 }}>
-          <h3 style={{ marginBottom: 6 }}>Step 2 — Which series is which category?</h3>
+          <h3 style={{ marginBottom: 6 }}>Manual option A — series mapping without detection</h3>
           <p style={{ fontSize: 13.5, color: "var(--text-muted)", marginBottom: 16 }}>
-            The layout labels stalls with a letter series plus a number (for example <strong>G1, G2</strong> and{" "}
-            <strong>R1, R2</strong>). Tell us what each series means — e.g. <strong>G</strong> = Gold,{" "}
+            Only needed if automatic detection couldn't read your drawing. The layout labels stalls with a letter
+            series plus a number (for example <strong>G1, G2</strong> and <strong>R1, R2</strong>). Tell us what each series means — e.g. <strong>G</strong> = Gold,{" "}
             <strong>R</strong> = Regular — and whether the labels use a dash (G-1) or not (G1). Then{" "}
             <strong>Generate stalls</strong> creates one record per stall at that category's rate-card price, named
             exactly as on the drawing, so the online map matches the layout.
@@ -438,13 +545,13 @@ export default function StallsPanel({ token }) {
 
       {mapUrl && (
         <div className="card form-card" style={{ marginBottom: 24 }}>
-          <h3 style={{ marginBottom: 6 }}>Step 3 — Place each stall on the layout</h3>
+          <h3 style={{ marginBottom: 6 }}>Manual option B — place or adjust stalls by hand</h3>
           <p style={{ fontSize: 13.5, color: "var(--text-muted)", marginBottom: 16 }}>
-            Pick a category; the tool queues its stalls in order (G1, then G2, …). Click the matching printed
-            stall on the drawing — one click per stall, it advances automatically. That spot becomes the
-            marker exhibitors tap on the registration page and the public Stalls page. Already-placed stalls
-            show as green dots, the one you're placing shows in gold; click a placed stall again in the
-            dropdown to move it.
+            Use this to nudge a detected stall to a better spot, or to place stalls when detection isn't possible.
+            Pick a category; its unplaced stalls appear as chips — drag a chip onto its printed stall on the
+            drawing, or click the drawing to place the selected one (the queue advances automatically: G1,
+            then G2, …). Drag any green marker to nudge it. That spot becomes the marker exhibitors tap on the
+            registration page and the live pin on the public Stalls page.
           </p>
           {placeMsg && (
             <div
@@ -489,24 +596,67 @@ export default function StallsPanel({ token }) {
             </div>
           </div>
           {placeCategory ? (
-            <div
-              className="map-place-wrap"
-              onClick={handlePlaceClick}
-              style={{ opacity: placingCoord ? 0.7 : 1, cursor: placeStallId ? "crosshair" : "not-allowed" }}
-            >
-              <img src={`${FILE_ORIGIN}${mapUrl}`} alt="Stall map for placement" className="map-place-img" />
-              {categoryStallsForPlacement
-                .filter((s) => s.mapX != null && s.mapY != null)
-                .map((s) => (
-                  <div
-                    key={s._id}
-                    className={`map-place-marker ${s._id === placeStallId ? "is-current" : "is-placed"}`}
-                    style={{ left: `${s.mapX}%`, top: `${s.mapY}%` }}
-                  >
-                    {s.stallNumber}
-                  </div>
-                ))}
-            </div>
+            <>
+              {unplacedForPlacement.length > 0 && (
+                <div className="place-chips" aria-label="Stalls not yet on the map">
+                  <span className="place-chips-label">Drag onto the map (or click to select):</span>
+                  {unplacedForPlacement.map((s) => (
+                    <button
+                      type="button"
+                      key={s._id}
+                      className={`place-chip ${s._id === placeStallId ? "is-current" : ""}`}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/stall-id", s._id);
+                        e.dataTransfer.effectAllowed = "move";
+                        setPlaceStallId(s._id);
+                      }}
+                      onClick={() => setPlaceStallId(s._id)}
+                    >
+                      {s.stallNumber}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <ZoomableMap
+                src={`${FILE_ORIGIN}${mapUrl}`}
+                alt="Stall map for placement"
+                wrapClassName="map-place-wrap"
+                imgClassName="map-place-img"
+                hint="Click the drawing to place the selected stall · drag a marker to move it · zoom in for precision"
+                wrapProps={{
+                  onClick: handlePlaceClick,
+                  onDragOver: handleMapDragOver,
+                  onDrop: handleMapDrop,
+                  style: { opacity: placingCoord ? 0.7 : 1, cursor: placeStallId ? "crosshair" : "default" },
+                }}
+              >
+                {categoryStallsForPlacement
+                  .filter((s) => s.mapX != null && s.mapY != null)
+                  .map((s) => {
+                    const live = dragging && dragging.id === s._id ? dragging : s;
+                    return (
+                      <div
+                        key={s._id}
+                        data-id={s._id}
+                        data-no-pan
+                        className={`map-place-marker ${s._id === placeStallId ? "is-current" : "is-placed"} ${
+                          dragging && dragging.id === s._id ? "is-dragging" : ""
+                        }`}
+                        style={{ left: `${live.mapX}%`, top: `${live.mapY}%` }}
+                        onPointerDown={(e) => handleMarkerPointerDown(e, s)}
+                        onPointerMove={handleMarkerPointerMove}
+                        onPointerUp={handleMarkerPointerUp}
+                        onPointerCancel={() => setDragging(null)}
+                        onClick={(e) => e.stopPropagation()}
+                        title="Drag to move · tap to select"
+                      >
+                        {s.stallNumber}
+                      </div>
+                    );
+                  })}
+              </ZoomableMap>
+            </>
           ) : (
             <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
               Choose a category above to start placing stalls on the map.

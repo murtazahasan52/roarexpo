@@ -34,7 +34,9 @@ from utils.email_templates import exhibitor_approved_email_html
 from utils.hashing import hash_password, verify_password
 from utils.invoice import build_exhibitor_invoice_pdf
 from utils.pdf_to_image import pdf_first_page_to_png
+from utils.layout_detect import detect_layout, suggest_package_for_prefix
 from utils.mailer import send_mail
+from utils.storage import get_object
 from utils.whatsapp import send_whatsapp
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -77,12 +79,16 @@ async def stats(admin: AdminPayload = Depends(require_admin), db: AsyncIOMotorDa
     can_see_enquiries = is_all or "enquiries" in permissions
 
     exhibitor_count = await db.exhibitors.count_documents({}) if can_see_exhibitors else 0
+    approved_exhibitor_count = await db.exhibitors.count_documents({"status": "approved"}) if can_see_exhibitors else 0
+    pending_exhibitor_count = await db.exhibitors.count_documents({"status": "pending"}) if can_see_exhibitors else 0
     visitor_count = await db.visitors.count_documents({}) if can_see_visitors else 0
     checked_in_count = await db.visitors.count_documents({"checkedIn": True}) if can_see_checked_in else 0
     new_enquiry_count = await db.enquiries.count_documents({"status": "new"}) if can_see_enquiries else 0
 
     return {"success": True, "data": {
-        "exhibitorCount": exhibitor_count, "visitorCount": visitor_count, "checkedInCount": checked_in_count,
+        "exhibitorCount": exhibitor_count, "approvedExhibitorCount": approved_exhibitor_count,
+        "pendingExhibitorCount": pending_exhibitor_count,
+        "visitorCount": visitor_count, "checkedInCount": checked_in_count,
         "newEnquiryCount": new_enquiry_count,
     }}
 
@@ -487,10 +493,103 @@ async def upload_stall_map(
     )
     result = await db.stall_maps.insert_one(doc)
     doc["_id"] = result.inserted_id
+
+    # Detect the stalls drawn on the layout right away so the admin can
+    # confirm the series → category mapping once and apply everything.
+    detection = await _run_detection(contents)
     return {
         "success": True,
         "message": "PDF layout converted and uploaded" if is_pdf else "Stall map uploaded",
-        "data": map_payload(doc),
+        "data": {**map_payload(doc), "detection": detection},
+    }
+
+
+async def _run_detection(image_bytes: bytes) -> dict:
+    try:
+        det = await asyncio.to_thread(detect_layout, image_bytes)
+    except Exception as err:  # noqa: BLE001 — detection is best-effort; manual placement still works
+        print("[stalls] layout detection failed:", err)
+        return {"ok": False, "error": str(err), "boxes": [], "rows": [], "prefixes": [], "ocrEngine": None}
+    for p in det["prefixes"]:
+        p["suggestedPackageCode"] = suggest_package_for_prefix(p["prefix"], EVENT["stallPackages"])
+    det["ok"] = True
+    return det
+
+
+# Re-run stall detection on the current layout (for maps uploaded before
+# this feature existed, or to try again after fixing the drawing).
+@router.post("/stalls/detect-layout")
+async def detect_current_layout(
+    admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    current = await db.stall_maps.find_one(sort=[("createdAt", -1)])
+    if not current:
+        raise HTTPException(status_code=404, detail="Upload a layout first")
+    storage_path = (current.get("url") or "").split("/api/files/", 1)[-1]
+    if not storage_path:
+        raise HTTPException(status_code=404, detail="The layout file is missing — upload it again")
+    try:
+        image_bytes, _ = await asyncio.to_thread(get_object, storage_path)
+    except Exception:  # noqa: BLE001
+        raise HTTPException(status_code=404, detail="The layout file is missing — upload it again")
+    detection = await _run_detection(image_bytes)
+    return {"success": True, "data": {**map_payload(current), "detection": detection}}
+
+
+# Apply a confirmed layout: saves the series → category mapping and creates
+# or updates every listed stall WITH its map position, so markers appear on
+# the registration page and the public Stalls page immediately.
+@router.post("/stalls/apply-layout")
+async def apply_layout(
+    payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    current = await db.stall_maps.find_one(sort=[("createdAt", -1)])
+    if not current:
+        raise HTTPException(status_code=404, detail="Upload a layout first")
+
+    parsed_series, err = parse_series(payload.get("series") or [])
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+
+    stalls_in = payload.get("stalls")
+    if not isinstance(stalls_in, list) or not stalls_in:
+        raise HTTPException(status_code=400, detail="No stalls to apply")
+
+    created, updated, seen = [], [], set()
+    for s in stalls_in:
+        number = str(s.get("stallNumber") or "").strip().upper()
+        code = str(s.get("packageCode") or "").strip()
+        pkg = find_stall_package(code)
+        try:
+            map_x, map_y = float(s.get("mapX")), float(s.get("mapY"))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail=f"Stall {number or '?'} has no map position")
+        if not number or not pkg:
+            raise HTTPException(status_code=400, detail=f"Stall {number or '?'} needs a number and a valid category")
+        if number in seen:
+            raise HTTPException(status_code=400, detail=f"Stall number {number} appears more than once")
+        seen.add(number)
+        map_x, map_y = max(0.0, min(100.0, map_x)), max(0.0, min(100.0, map_y))
+
+        existing = await db.stalls.find_one({"stallNumber": number})
+        if existing:
+            await db.stalls.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {"packageCode": code, "size": pkg["label"], "mapX": map_x, "mapY": map_y, "updatedAt": utcnow()}},
+            )
+            updated.append(number)
+        else:
+            doc = new_stall_document(number, code, pkg.get("rate") or 0, pkg["label"])
+            doc["mapX"], doc["mapY"] = map_x, map_y
+            await db.stalls.insert_one(doc)
+            created.append(number)
+
+    await db.stall_maps.update_one({"_id": current["_id"]}, {"$set": {"series": parsed_series or [], "updatedAt": utcnow()}})
+    return {
+        "success": True,
+        "message": f"Layout applied — {len(created)} stall(s) created, {len(updated)} updated with their positions",
+        "data": {"created": created, "updated": updated},
     }
 
 

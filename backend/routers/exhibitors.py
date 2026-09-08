@@ -17,11 +17,12 @@ from config.event_config import EVENT
 from middleware.rate_limit import rate_limit
 from middleware.upload import EXHIBITOR_FILE_MAX_BYTES, save_upload
 from models.exhibitor import new_exhibitor_document
-from utils.email_templates import exhibitor_email_html
+from utils.email_templates import exhibitor_alert_html, exhibitor_email_html
 from utils.generate_code import generate_registration_code
 from utils.validators import is_valid_email, is_valid_url
 from utils.whatsapp import send_whatsapp
 from utils.mailer import send_mail
+from utils.notify import notify_organizers
 
 router = APIRouter(prefix="/api/exhibitors", tags=["exhibitors"])
 
@@ -183,6 +184,13 @@ async def register_exhibitor(
         except Exception as mail_err:  # noqa: BLE001
             print("[exhibitor] Failed to send confirmation email:", mail_err)
             await db.exhibitors.update_one({"_id": doc["_id"]}, {"$set": {"emailError": str(mail_err)}})
+
+        # Instant alert to the organizing team — a new stall is waiting for approval.
+        await notify_organizers(
+            kind="exhibitor",
+            subject=f"New exhibitor: {doc['companyName']} — {doc.get('stallNumber') or 'stall to be assigned'} ({EVENT['eventName']})",
+            html=exhibitor_alert_html(doc),
+        )
 
         # WhatsApp delivery — non-blocking and safe to skip entirely until a
         # provider is configured (see utils/whatsapp.py).

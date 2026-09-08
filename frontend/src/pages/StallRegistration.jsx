@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useEventConfig } from "../hooks/useEventConfig";
 import Icon from "../components/Icon";
+import ZoomableMap from "../components/ZoomableMap";
 
 const MAX_PRODUCT_IMAGES = 5;
 
@@ -401,8 +402,7 @@ export default function StallRegistration() {
                         <strong>{availableInCategory.length}</strong> {selectedPackage.label.replace(/ Stall$/, "")} stall
                         {availableInCategory.length === 1 ? "" : "s"} available — tap a green one to select it.
                       </p>
-                      <div className="map-picker-wrap">
-                        <img src={stallMapUrl} alt="Venue stall map" className="map-picker-img" />
+                      <ZoomableMap src={stallMapUrl} alt="Venue stall map">
                         {otherCategoryStalls.map((s) => (
                           <div
                             key={`other-${s.stallNumber}`}
@@ -433,9 +433,9 @@ export default function StallRegistration() {
                             </div>
                           );
                         })}
-                      </div>
+                      </ZoomableMap>
                       <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 8 }}>
-                        Tap a marker on the map to pick that stall. (Sample layout — the organizing team may
+                        Tap a marker on the map to pick that stall. Use + to zoom in and scroll around if the numbers are small. (Sample layout — the organizing team may
                         update this closer to the event.)
                       </p>
                     </>

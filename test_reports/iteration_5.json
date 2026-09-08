@@ -1,0 +1,38 @@
+{
+  "summary": "Room-alerts release fully tested. Backend: 43/43 pytest passing (9 new room-alerts tests + 33 legacy). Frontend: /stalls page renders ZoomableMap with − / + / Fit controls, admin dashboard shows 'APPROVED EXHIBITORS' with 'n pending approval · n total' sub-line, WhatsApp floating button + hero logo intact, 0 JS errors. Layout detection (OpenCV+tesseract) works end-to-end incl. re-detect from object storage. Organizer alerts are non-blocking; enquiry auto-reply sets ackSent=true.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_details": {
+    "admin_stats": "GET /api/admin/stats returns approvedExhibitorCount + pendingExhibitorCount (ints).",
+    "upload_map_detection": "POST /api/admin/stalls/upload-map with a plain 1x1 PNG → 200, data.url is /api/files/roar-expo/stall-maps/*.png (fetches 200 image/*), detection object has keys ok/boxes/rows/prefixes/ocrEngine (boxes=0, ok=true).",
+    "upload_map_synthetic_layout": "Uploading a 800x600 PNG with 12 dark-bordered light rectangles yields detection.ok=true with >=6 boxes detected. ocrEngine='pytesseract' available.",
+    "detect_layout_object_storage": "POST /api/admin/stalls/detect-layout reads the last uploaded map back from object storage via utils.storage.get_object and returns 200 with a fresh detection object — no 404/500.",
+    "apply_layout": "POST /api/admin/stalls/apply-layout with 3 TAG-* stalls at gold + series creates stalls with mapX/mapY; GET /api/public/stall-directory returns them with coordinates; GET /api/public/stall-map returns the series entry. Re-apply is idempotent (200, updates only).",
+    "organizer_alerts_nonblocking": "POST /api/visitors/register, multipart POST /api/exhibitors/register (with PNG logo), and POST /api/enquiries all succeed with RE-VIS-* / RE-STL-* codes; created docs have no emailError (organizer alert send never blocks the write). Exhibitor logoUrl persisted to /api/files/... and re-fetch is 200.",
+    "enquiry_auto_reply": "Enquiry doc has ackSent=true and no ackError after ~2s wait (Gmail app-password delivery working).",
+    "frontend_stalls_page": "/stalls renders 'Venue layout & stall bookings' heading, counters (0 stalls on the map / 0 available / 0 reserved / 0 booked), 'All categories' filter, ZoomableMap toolbar showing '100% + − Fit' controls + helper text 'Zoom in to read stall numbers | drag or scroll to move around | hover or tap a stall for details'. Clicking + and Fit works with 0 JS errors.",
+    "frontend_admin_dashboard": "First stat card label = 'APPROVED EXHIBITORS' with sub-line '2 pending approval · 2 total'. Old label 'EXHIBITOR REGISTRATIONS' no longer used on that card.",
+    "regressions": "Navbar right cluster: [Enquiry, Register as Visitor, Register as Exhibitor]. WhatsApp button data-testid='whatsapp-float-button' present with href https://wa.me/919284182675?text=... Hero logo intact. 0 console errors on home + /stalls + admin dashboard."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_room_alerts.py",
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/test_registration.py",
+    "/app/test_reports/pytest/iter5.xml",
+    "/app/test_reports/pytest/iter5_full.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routers/admin.py is now ~920 lines — well past the 700-line guideline. Split stall-map handlers (upload-map, detect-layout, apply-layout, map-series, generate-from-series) into a dedicated router file for maintainability.",
+    "detect_current_layout swallows all get_object exceptions as 404 'file is missing'. If the underlying storage backend errors for other reasons (auth, network) the admin will see a misleading 'upload it again' message; log the actual error and consider surfacing a 500 for non-NotFound failures.",
+    "layout_detect.detect_layout imports cv2/numpy lazily inside helpers; that's fine, but detection is CPU-bound and runs synchronously in asyncio.to_thread — for large plans with 100+ stalls this can hold a worker for several seconds. Consider a per-request timeout or offloading to a queue.",
+    "Consider Pydantic models for apply-layout / map-series payloads instead of raw dict Body — current 400s use string 'detail' returned as 'message' by the exception handler, but strong typing would eliminate a class of bugs and give clients better validation errors."
+  ],
+  "updated_files": ["/app/backend/tests/test_room_alerts.py (created)"],
+  "success_rate": {"backend": "100% (43/43)", "frontend": "100% acceptance criteria"},
+  "test_credentials": "admin@roarexpo.com / Admin@12345 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Tests created TEST_ / test.ra.* prefixed visitor/exhibitor/enquiry rows and TAG-1..3 stalls, then cleaned them up in the same run (test_cleanup_ra + inline deletes).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Room-alerts features (layout upload+detect+apply, non-blocking organizer alerts, enquiry auto-reply, admin approved/pending counts) covered in /app/backend/tests/test_room_alerts.py. cv2, numpy, tesseract binary and rapidocr-onnxruntime all installed and working. Frontend URL from /app/frontend/.env is https://code-fetch-43.preview.emergentagent.com (differs from the c9e4cfb8-...preview URL listed in the review request — env is source of truth). Error payloads still use 'message' not 'detail'."
+}

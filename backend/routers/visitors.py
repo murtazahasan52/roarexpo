@@ -8,11 +8,12 @@ from config.db import get_db
 from config.event_config import EVENT
 from middleware.rate_limit import rate_limit
 from models.visitor import VisitorRegisterRequest, new_visitor_document
-from utils.email_templates import visitor_email_html
+from utils.email_templates import visitor_email_html, visitor_alert_html
 from utils.generate_code import generate_registration_code
 from utils.id_card_image import build_visitor_id_card_png
 from utils.invitation_card import build_visitor_invitation_pdf
 from utils.mailer import send_mail
+from utils.notify import notify_organizers
 from utils.whatsapp import send_whatsapp
 
 router = APIRouter(prefix="/api/visitors", tags=["visitors"])
@@ -73,6 +74,13 @@ async def register_visitor(payload: VisitorRegisterRequest, db: AsyncIOMotorData
         except Exception as mail_err:  # noqa: BLE001
             print("[visitor] Failed to send invitation email:", mail_err)
             await db.visitors.update_one({"_id": doc["_id"]}, {"$set": {"emailError": str(mail_err)}})
+
+        # Instant alert to the organizing team.
+        await notify_organizers(
+            kind="visitor",
+            subject=f"New visitor: {doc['fullName']} ({EVENT['eventName']})",
+            html=visitor_alert_html(doc),
+        )
 
         # WhatsApp delivery — non-blocking and safe to skip entirely until a
         # provider is configured (see utils/whatsapp.py).

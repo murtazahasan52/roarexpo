@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useEventConfig } from "../hooks/useEventConfig";
+import ZoomableMap from "../components/ZoomableMap";
 
 const STATUS_LABEL = {
   available: "Available",
@@ -51,7 +52,7 @@ export default function StallDirectory() {
 
   return (
     <section className="section">
-      <div className="container" style={{ maxWidth: 1080 }}>
+      <div className="container" style={{ maxWidth: 1240 }}>
         <div className="eyebrow">Stalls</div>
         <h2>Venue layout &amp; stall bookings</h2>
         <p className="lead">
@@ -95,8 +96,12 @@ export default function StallDirectory() {
                 ))}
             </div>
 
-            <div className="map-picker-wrap" onMouseLeave={() => setHover(null)}>
-              <img src={mapUrl} alt="Venue stall layout" className="map-picker-img" />
+            <ZoomableMap
+              src={mapUrl}
+              alt="Venue stall layout"
+              wrapProps={{ onMouseLeave: () => setHover(null) }}
+              hint="Zoom in to read stall numbers · drag or scroll to move around · hover or tap a stall for details"
+            >
               {visible.map((s) => (
                 <div
                   key={s.stallNumber}
@@ -129,7 +134,7 @@ export default function StallDirectory() {
                   )}
                 </div>
               )}
-            </div>
+            </ZoomableMap>
             <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 10 }}>
               Booking details update live as the organizing team confirms registrations.
             </p>
