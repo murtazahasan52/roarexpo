@@ -44,14 +44,14 @@ EVENT = {
     # team. stallCount is informational (matches the official chart's
     # "No. of Stalls" column) and totals to totalStallsNumbered.
     "stallPackages": [
-        {"code": "title", "label": "Title Stall", "icon": "🏆", "rate": 2100000, "stallCount": 1, "hasStallPicker": True, "inclusions": "Prime frontage location, maximum branding exposure, premium furnishing package"},
-        {"code": "diamond", "label": "Diamond Stall", "icon": "💎", "rate": 753000, "stallCount": 2, "hasStallPicker": True, "inclusions": "Prime location, enhanced branding, premium furnishing package"},
-        {"code": "gold", "label": "Gold Stall", "icon": "🥇", "rate": 453000, "stallCount": 4, "hasStallPicker": True, "inclusions": "High-visibility location, premium furnishing package"},
-        {"code": "silver", "label": "Silver Stall", "icon": "🥈", "rate": 353000, "stallCount": 4, "hasStallPicker": True, "inclusions": "Good-visibility location, standard furnishing package"},
-        {"code": "bronze", "label": "Bronze Stall", "icon": "🥉", "rate": 153000, "stallCount": 4, "hasStallPicker": True, "inclusions": "Standard furnishing package, fascia signage"},
-        {"code": "premium", "label": "Premium Stall", "icon": "⭐", "rate": 72000, "stallCount": 30, "hasStallPicker": True, "inclusions": "1 table, 2 chairs, power point, fascia signage"},
-        {"code": "regular", "label": "Regular Stall", "rate": 53000, "stallCount": 71, "hasStallPicker": True, "inclusions": "1 table, 2 chairs, power point, fascia signage"},
-        {"code": "ruby", "label": "Ruby Stall", "rate": 24000, "stallCount": 27, "hasStallPicker": True, "inclusions": "1 table, 2 chairs, power point, fascia signage"},
+        {"code": "title", "label": "Title Stall", "icon": "🏆", "rate": 2100000, "size": "6m × 6m", "stallCount": 1, "hasStallPicker": True, "inclusions": "Prime frontage location, maximum branding exposure, premium furnishing package"},
+        {"code": "diamond", "label": "Diamond Stall", "icon": "💎", "rate": 753000, "size": "6m × 3m", "stallCount": 2, "hasStallPicker": True, "inclusions": "Prime location, enhanced branding, premium furnishing package"},
+        {"code": "gold", "label": "Gold Stall", "icon": "🥇", "rate": 453000, "size": "6m × 3m", "stallCount": 4, "hasStallPicker": True, "inclusions": "High-visibility location, premium furnishing package"},
+        {"code": "silver", "label": "Silver Stall", "icon": "🥈", "rate": 353000, "size": "4m × 3m", "stallCount": 4, "hasStallPicker": True, "inclusions": "Good-visibility location, standard furnishing package"},
+        {"code": "bronze", "label": "Bronze Stall", "icon": "🥉", "rate": 153000, "size": "4m × 3m", "stallCount": 4, "hasStallPicker": True, "inclusions": "Standard furnishing package, fascia signage"},
+        {"code": "premium", "label": "Premium Stall", "icon": "⭐", "rate": 72000, "size": "4m × 3m", "stallCount": 30, "hasStallPicker": True, "inclusions": "1 table, 2 chairs, power point, fascia signage"},
+        {"code": "regular", "label": "Regular Stall", "rate": 53000, "size": "3m × 3m", "stallCount": 71, "hasStallPicker": True, "inclusions": "1 table, 2 chairs, power point, fascia signage"},
+        {"code": "ruby", "label": "Ruby Stall", "rate": 24000, "size": "3m × 3m", "stallCount": 27, "hasStallPicker": True, "inclusions": "1 table, 2 chairs, power point, fascia signage"},
         {"code": "food-court", "label": "Food Court", "rate": None, "sizeLabel": "2,000 – 3,000 sq. ft.", "hasStallPicker": False, "inclusions": "Space allocation and pricing discussed directly with the organizing team"},
         {"code": "play-zone", "label": "Play Zone", "rate": None, "sizeLabel": "1,000 sq. ft.", "hasStallPicker": False, "inclusions": "Space allocation and pricing discussed directly with the organizing team"},
     ],

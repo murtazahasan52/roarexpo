@@ -115,6 +115,15 @@ export default function AdminDashboard() {
   const [deletingId, setDeletingId] = useState(null);
   const limit = 20;
 
+  const [pkgSize, setPkgSize] = useState({});
+  useEffect(() => {
+    api.getConfig().then((r) => {
+      const map = {};
+      (r.data?.stallPackages || []).forEach((p) => { map[p.code] = p.size || p.sizeLabel || ""; });
+      setPkgSize(map);
+    }).catch(() => {});
+  }, []);
+
   async function handleExport() {
     setExporting(true);
     try {
@@ -365,6 +374,7 @@ export default function AdminDashboard() {
                       <th>Code</th>
                       <th>Company</th>
                       <th>Stall</th>
+                      <th>Size</th>
                       <th>Contact</th>
                       <th>Email</th>
                       <th>Phone</th>
@@ -394,6 +404,7 @@ export default function AdminDashboard() {
                             <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Fascia: {r.fasciaName}</div>
                           )}
                         </td>
+                        <td>{r.stallSize || pkgSize[r.stallPackage] || "—"}</td>
                         <td>{r.contactPerson}</td>
                         <td>{r.email}</td>
                         <td>{r.phone}</td>

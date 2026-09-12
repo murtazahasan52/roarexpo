@@ -97,7 +97,8 @@ async def apply_final_layout(db: AsyncIOMotorDatabase, *, replace_unplaced: bool
         if existing:
             await db.stalls.update_one(
                 {"_id": existing["_id"]},
-                {"$set": {"packageCode": s["packageCode"], "size": size, "mapX": s["mapX"], "mapY": s["mapY"],
+                {"$set": {"packageCode": s["packageCode"], "size": size, "rate": pkg.get("rate") or 0,
+                          "mapX": s["mapX"], "mapY": s["mapY"],
                           "updatedAt": utcnow()}},
             )
             updated.append(number)

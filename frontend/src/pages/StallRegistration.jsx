@@ -606,6 +606,7 @@ export default function StallRegistration() {
                     <tr>
                       <th>Category</th>
                       <th>Amount / Size</th>
+                      <th>Size</th>
                       <th>Stalls</th>
                       <th></th>
                     </tr>
@@ -619,6 +620,7 @@ export default function StallRegistration() {
                       >
                         <td>{p.icon ? `${p.icon} ` : ""}{p.label}</td>
                         <td>{p.rate != null ? formatRate(p.rate) : p.sizeLabel}</td>
+                        <td>{p.size || p.sizeLabel || "—"}</td>
                         <td>{p.stallCount || "—"}</td>
                         <td>
                           <span
