@@ -1,0 +1,30 @@
+{
+  "summary": "Verified (a) map flicker fix — no jitter observed on 390x844 or 768x1024 or /register/exhibitor+Ruby (all had 0.00px width jitter over ~2.5-3s of sampling), (b) v2 map artwork — /api/uploads/stall-maps/final-layout.png returns 200 image/png, 2918x1214, 4.5MB; /api/public/stall-map points at /uploads/stall-maps/final-layout.png; /api/public/stall-directory returns 143 items with numeric mapX/mapY; /stalls page renders 143 pin markers and shows '143 stalls on the map'. Regression: admin login (admin@roarexpo.com/Admin@12345) reaches /admin/dashboard, zoom in/out controls work (100%->400% verified), no JS console errors (only React Router future-flag warnings).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/public/stall-directory", "issue": "Response leaks MongoDB '_id' field on each stall (should be excluded per code review guideline)"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_final_layout.py"],
+  "action_items": [
+    "Optional: strip '_id' from /api/public/stall-directory responses (MongoDB ObjectId leakage — not blocking)."
+  ],
+  "critical_code_review_comments": [
+    "ZoomableMap.jsx measure() correctly rounds and guards <2px jitter; scrollbar-gutter:stable on .zoom-map-scroller reserves scrollbar space — flicker loop is resolved.",
+    "Public stall-directory API returns raw '_id'; consider excluding as per convention."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@roarexpo.com / Admin@12345",
+  "seed_data_creation": "None (only observed flows; no test writes performed).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Flicker fix and v2 map are both good on cluster preview. Measured img.map-picker-img bounding box + scroller clientWidth over 6-8 samples at 350-400ms intervals on mobile/tab/exhibitor-Ruby — all reported 0.00px jitter. Marker count = 143. If future changes touch ZoomableMap or scroller CSS, rerun this sampling pattern.",
+  "rca of the issue": "Flicker RCA (already fixed by main agent): on small viewports the scroller's overflow toggled the vertical scrollbar on/off; scrollbar visibility changed clientWidth, which the ResizeObserver reported, which re-triggered measure()->re-render->overflow flip. Fix combines CSS 'scrollbar-gutter: stable' (always reserves scrollbar space so clientWidth is invariant) with a JS guard that ignores sub-2px width deltas in measure(). Verified empirically: 0.00px jitter across all tested viewports."
+}

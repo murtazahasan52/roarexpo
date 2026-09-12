@@ -631,7 +631,7 @@ export default function StallRegistration() {
                   </tbody>
                 </table>
               </div>
-              <p className="rate-card-total">Total Stalls: {config.totalStallsNumbered || 141}</p>
+              <p className="rate-card-total">Total Stalls: {config.totalStallsNumbered || 143}</p>
               {selectedPackage && (
                 <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, marginBottom: 0 }}>
                   Includes: {selectedPackage.inclusions}

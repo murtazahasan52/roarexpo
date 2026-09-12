@@ -64,7 +64,7 @@ async def stall_directory(db: AsyncIOMotorDatabase = Depends(get_db)):
     for s in stalls:
         owner = owners.get(s.get("bookedBy")) if s.get("status") == "booked" else None
         data.append({
-            "_id": str(s["_id"]), "stallNumber": s["stallNumber"], "packageCode": s["packageCode"],
+            "id": str(s["_id"]), "stallNumber": s["stallNumber"], "packageCode": s["packageCode"],
             "status": s["status"], "mapX": s["mapX"], "mapY": s["mapY"], "owner": owner,
         })
     return {"success": True, "data": data}

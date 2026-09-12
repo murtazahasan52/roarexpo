@@ -51,14 +51,14 @@ EVENT = {
         {"code": "bronze", "label": "Bronze Stall", "icon": "🥉", "rate": 153000, "stallCount": 4, "hasStallPicker": True, "inclusions": "Standard furnishing package, fascia signage"},
         {"code": "premium", "label": "Premium Stall", "icon": "⭐", "rate": 72000, "stallCount": 30, "hasStallPicker": True, "inclusions": "1 table, 2 chairs, power point, fascia signage"},
         {"code": "regular", "label": "Regular Stall", "rate": 53000, "stallCount": 27, "hasStallPicker": True, "inclusions": "1 table, 2 chairs, power point, fascia signage"},
-        {"code": "ruby", "label": "Ruby Stall", "rate": 24000, "stallCount": 69, "hasStallPicker": True, "inclusions": "1 table, 2 chairs, power point, fascia signage"},
+        {"code": "ruby", "label": "Ruby Stall", "rate": 24000, "stallCount": 71, "hasStallPicker": True, "inclusions": "1 table, 2 chairs, power point, fascia signage"},
         {"code": "food-court", "label": "Food Court", "rate": None, "sizeLabel": "2,000 – 3,000 sq. ft.", "hasStallPicker": False, "inclusions": "Space allocation and pricing discussed directly with the organizing team"},
         {"code": "play-zone", "label": "Play Zone", "rate": None, "sizeLabel": "1,000 sq. ft.", "hasStallPicker": False, "inclusions": "Space allocation and pricing discussed directly with the organizing team"},
     ],
     # Sum of stallCount across the 8 individually-numbered categories above —
-    # matches the final venue drawing (141 numbered stalls: T1, D1–D2, G1–G4, S1–S4, B1–B4, X1–X28 + XY1/XY2, 69 Ruby stalls Y1–Y72 (no Y22/Y64/Y68 on the artwork), L1–L27). Food Court and Play
+    # matches the final venue drawing (143 numbered stalls: T1, D1–D2, G1–G4, S1–S4, B1–B4, X1–X28 + XY1/XY2, Y1–Y71, L1–L27). Food Court and Play
     # Zone are sq.ft-based and excluded from this figure.
-    "totalStallsNumbered": 141,
+    "totalStallsNumbered": 143,
     "categories": [
         {"key": "industrial-machinery", "label": "Industrial Machinery"},
         {"key": "robotics-automation", "label": "Robotics & Automation"},

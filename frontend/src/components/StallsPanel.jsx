@@ -552,7 +552,7 @@ export default function StallsPanel({ token }) {
               disabled={bundling || detecting}
               title="Publish the final venue drawing shipped with the app, with all its stalls already placed"
             >
-              {bundling ? "Publishing…" : "Use the final ROAR layout (141 stalls)"}
+              {bundling ? "Publishing…" : "Use the final ROAR layout (143 stalls)"}
             </button>
           </div>
         </div>

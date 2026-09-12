@@ -27,11 +27,11 @@ export const fallbackConfig = {
     { code: "bronze", label: "Bronze Stall", icon: "🥉", rate: 153000, stallCount: 4, hasStallPicker: true, inclusions: "Standard furnishing package, fascia signage" },
     { code: "premium", label: "Premium Stall", icon: "⭐", rate: 72000, stallCount: 30, hasStallPicker: true, inclusions: "1 table, 2 chairs, power point, fascia signage" },
     { code: "regular", label: "Regular Stall", rate: 53000, stallCount: 27, hasStallPicker: true, inclusions: "1 table, 2 chairs, power point, fascia signage" },
-    { code: "ruby", label: "Ruby Stall", rate: 24000, stallCount: 69, hasStallPicker: true, inclusions: "1 table, 2 chairs, power point, fascia signage" },
+    { code: "ruby", label: "Ruby Stall", rate: 24000, stallCount: 71, hasStallPicker: true, inclusions: "1 table, 2 chairs, power point, fascia signage" },
     { code: "food-court", label: "Food Court", rate: null, sizeLabel: "2,000 – 3,000 sq. ft.", hasStallPicker: false, inclusions: "Space allocation and pricing discussed directly with the organizing team" },
     { code: "play-zone", label: "Play Zone", rate: null, sizeLabel: "1,000 sq. ft.", hasStallPicker: false, inclusions: "Space allocation and pricing discussed directly with the organizing team" },
   ],
-  totalStallsNumbered: 141,
+  totalStallsNumbered: 143,
   categories: [
     { key: "industrial-machinery", label: "Industrial Machinery" },
     { key: "robotics-automation", label: "Robotics & Automation" },

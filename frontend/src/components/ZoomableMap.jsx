@@ -22,6 +22,7 @@ export default function ZoomableMap({ src, alt, imgClassName = "map-picker-img",
   const [ready, setReady] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const drag = useRef(null);
+  const lastWidthRef = useRef(0);
 
   // Full-screen view: the map takes the whole screen (phones can turn
   // landscape), with its own zoom controls; Esc or the button closes it.
@@ -47,8 +48,12 @@ export default function ZoomableMap({ src, alt, imgClassName = "map-picker-img",
     const el = scrollerRef.current;
     if (!el) return undefined;
     const measure = () => {
-      const w = el.clientWidth;
+      const w = Math.round(el.clientWidth);
       if (!w) return;
+      // Ignore sub-pixel / scrollbar-sized jitter that would otherwise loop
+      // the ResizeObserver → re-render → re-measure and flicker on small screens.
+      if (Math.abs(w - lastWidthRef.current) < 2 && ready) return;
+      lastWidthRef.current = w;
       setViewportWidth(w);
       if (!ready) {
         let wanted = MIN_READABLE_WIDTH / w;

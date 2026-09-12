@@ -2572,6 +2572,7 @@ tbody tr:last-child td {
      box (and a grid/flex parent) would grow to fit it and loop forever. */
   contain: inline-size;
   overflow: auto;
+  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   border-radius: var(--radius-md);
