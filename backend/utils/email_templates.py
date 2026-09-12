@@ -240,7 +240,7 @@ def exhibitor_alert_html(exhibitor: dict) -> str:
       <tr><td style="padding:6px 0;color:#666;">Company</td><td style="padding:6px 0;">{_esc(exhibitor.get('companyName'))}</td></tr>
       <tr><td style="padding:6px 0;color:#666;">Contact person</td><td style="padding:6px 0;">{_esc(exhibitor.get('contactPerson'))}</td></tr>
       <tr><td style="padding:6px 0;color:#666;">Email</td><td style="padding:6px 0;"><a href="mailto:{_esc(exhibitor.get('email'))}" style="color:#0c1a33;">{_esc(exhibitor.get('email'))}</a></td></tr>
-      <tr><td style="padding:6px 0;color:#666;">Mobile</td><td style="padding:6px 0;">{_esc(exhibitor.get('mobile'))}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Mobile</td><td style="padding:6px 0;">{_esc(exhibitor.get('phone'))}</td></tr>
       <tr><td style="padding:6px 0;color:#666;">Category</td><td style="padding:6px 0;">{_esc(exhibitor.get('category'))}</td></tr>
       <tr><td style="padding:6px 0;color:#666;">Stall package</td><td style="padding:6px 0;">{_esc(pkg['label'] if pkg else exhibitor.get('stallPackage'))}</td></tr>
       <tr><td style="padding:6px 0;color:#666;">Stall number</td><td style="padding:6px 0;">{_esc(exhibitor.get('stallNumber') or 'To be assigned')}</td></tr>

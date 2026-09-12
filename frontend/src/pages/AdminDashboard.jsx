@@ -364,11 +364,11 @@ export default function AdminDashboard() {
                     <tr>
                       <th>Code</th>
                       <th>Company</th>
+                      <th>Stall</th>
                       <th>Contact</th>
                       <th>Email</th>
                       <th>Phone</th>
                       <th>Category</th>
-                      <th>Stall</th>
                       <th>Status</th>
                       <th>Email Sent</th>
                       <th>WhatsApp</th>
@@ -381,10 +381,6 @@ export default function AdminDashboard() {
                       <tr key={r._id}>
                         <td>{r.registrationCode}</td>
                         <td>{r.companyName}</td>
-                        <td>{r.contactPerson}</td>
-                        <td>{r.email}</td>
-                        <td>{r.phone}</td>
-                        <td>{r.category}</td>
                         <td>
                           {r.stallNumber ? (
                             <>
@@ -398,6 +394,10 @@ export default function AdminDashboard() {
                             <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Fascia: {r.fasciaName}</div>
                           )}
                         </td>
+                        <td>{r.contactPerson}</td>
+                        <td>{r.email}</td>
+                        <td>{r.phone}</td>
+                        <td>{r.category}</td>
                         <td>
                           <span
                             className={`badge ${
