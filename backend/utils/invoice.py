@@ -30,7 +30,7 @@ INK = colors.HexColor("#101c33")
 LINE = colors.HexColor("#e9e4d8")
 SLATE = colors.HexColor("#3c4657")
 
-HEADER_HEIGHT = 34 * mm
+HEADER_HEIGHT = 24 * mm
 
 
 def _format_amount(n) -> str:
@@ -64,12 +64,15 @@ class _HeaderBand(Flowable):
         c.rect(0, 0, self.width, self.height, fill=1, stroke=0)
         c.setFillColor(GOLD)
         c.setFont("Helvetica-Bold", 22)
-        c.drawString(self.margin, self.height - 30, "ROAR")
+        c.drawString(self.margin, self.height - 34, "ROAR")
         c.setFillColor(colors.white)
         c.setFont("Helvetica", 9)
-        c.drawString(self.margin, self.height - 46, EVENT["eventName"].upper())
+        c.drawString(self.margin, self.height - 50, EVENT["eventName"].upper())
         c.setFont("Helvetica-Bold", 12)
-        c.drawRightString(self.width - self.margin, self.height - 22, "STALL BOOKING SUMMARY")
+        c.drawRightString(self.width - self.margin, self.height - 34, "STALL BOOKING SUMMARY")
+        c.setFont("Helvetica", 8.5)
+        c.setFillColor(colors.HexColor("#c9d1e0"))
+        c.drawRightString(self.width - self.margin, self.height - 50, f"{EVENT['venueName']}  ·  {EVENT['eventDatesLabel']}")
 
 
 def build_exhibitor_invoice_pdf(exhibitor: dict) -> bytes:
@@ -78,23 +81,28 @@ def build_exhibitor_invoice_pdf(exhibitor: dict) -> bytes:
     package_label = (stall_package_info or {}).get("label") or exhibitor.get("stallPackage") or "—"
     inclusions = (stall_package_info or {}).get("inclusions") or ""
     quantity = exhibitor.get("numberOfStalls") or 1
+    # The rate captured at registration wins; a registration made without a
+    # numbered stall falls back to the category's rate-card price so the
+    # summary still shows an amount rather than "to be confirmed".
     rate = exhibitor.get("stallRate")
+    if rate is None:
+        rate = (stall_package_info or {}).get("rate")
     total = rate * quantity if rate is not None else None
 
     buf = io.BytesIO()
     doc = BaseDocTemplate(
         buf,
         pagesize=A4,
-        leftMargin=50, rightMargin=50, topMargin=50 + HEADER_HEIGHT, bottomMargin=50,
+        leftMargin=50, rightMargin=50, topMargin=36 + HEADER_HEIGHT, bottomMargin=50,
         title=f"ROAR Expo Booking Summary {exhibitor.get('registrationCode', '')}",
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="body")
     doc.addPageTemplates([PageTemplate(id="main", frames=[frame], onPage=lambda c, d: _draw_header(c, d, margin=50))])
 
     label_style = ParagraphStyle("label", fontName="Helvetica-Bold", fontSize=10, textColor=SLATE, spaceAfter=2)
-    value_style = ParagraphStyle("value", fontName="Helvetica", fontSize=11, textColor=INK)
+    value_style = ParagraphStyle("value", fontName="Helvetica", fontSize=11, leading=14, textColor=INK)
     section_style = ParagraphStyle("section", fontName="Helvetica-Bold", fontSize=11, textColor=colors.HexColor("#b8740f"))
-    company_style = ParagraphStyle("company", fontName="Helvetica-Bold", fontSize=13, textColor=INK, spaceBefore=4)
+    company_style = ParagraphStyle("company", fontName="Helvetica-Bold", fontSize=13, leading=17, textColor=INK, spaceBefore=4, spaceAfter=3)
     body_style = ParagraphStyle("body", fontName="Helvetica", fontSize=10.5, textColor=SLATE, leading=14)
     footer_style = ParagraphStyle("footer", fontName="Helvetica", fontSize=9, textColor=MUTED, leading=12)
     footer_contact_style = ParagraphStyle("footer_contact", fontName="Helvetica", fontSize=9.5, textColor=SLATE, leading=13)
@@ -108,7 +116,9 @@ def build_exhibitor_invoice_pdf(exhibitor: dict) -> bytes:
                 Paragraph(exhibitor.get("registrationCode", ""), value_style),
                 Paragraph(_format_date(None), value_style),
                 Paragraph(
-                    {"confirmed": "Confirmed", "cancelled": "Cancelled"}.get(exhibitor.get("status"), "Pending"),
+                    {"approved": "Confirmed", "confirmed": "Confirmed", "rejected": "Cancelled", "cancelled": "Cancelled"}.get(
+                        exhibitor.get("status"), "Pending approval"
+                    ),
                     value_style,
                 ),
             ],
@@ -116,12 +126,15 @@ def build_exhibitor_invoice_pdf(exhibitor: dict) -> bytes:
         colWidths=[doc.width / 3] * 3,
     )
     ref_table.setStyle(TableStyle([
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("LINEBELOW", (0, 1), (-1, 1), 1, LINE, None, None, None, 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, 0), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
+        ("TOPPADDING", (0, 1), (-1, 1), 0),
+        ("BOTTOMPADDING", (0, 1), (-1, 1), 10),
+        ("LINEBELOW", (0, 1), (-1, 1), 1, LINE),
     ]))
     story.append(ref_table)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 16))
 
     story.append(Paragraph("EXHIBITOR", section_style))
     story.append(Paragraph(exhibitor.get("companyName", ""), company_style))

@@ -3,13 +3,8 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useEventConfig } from "../hooks/useEventConfig";
 import ZoomableMap from "../components/ZoomableMap";
+import { useStallTip, StallTip, STATUS_LABEL } from "../components/StallTooltip";
 
-const STATUS_LABEL = {
-  available: "Available",
-  held: "Reserved — pending confirmation",
-  booked: "Booked",
-  blocked: "Not available",
-};
 
 // Public "Stalls" page: the venue layout with every placed stall. Hovering
 // (or tapping, on touch screens) a stall shows its category and status, and
@@ -19,7 +14,7 @@ export default function StallDirectory() {
   const [mapUrl, setMapUrl] = useState("");
   const [stalls, setStalls] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [hover, setHover] = useState(null); // stallNumber currently hovered/tapped
+  const { hover, tip, hideTip, toggleTip, markerProps } = useStallTip();
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
@@ -27,7 +22,7 @@ export default function StallDirectory() {
     Promise.all([api.getStallMap().catch(() => null), api.getStallDirectory().catch(() => null)])
       .then(([mapRes, dirRes]) => {
         if (cancelled) return;
-        setMapUrl(mapRes?.data?.url || "");
+        setMapUrl(api.fileUrl(mapRes?.data?.url || ""));
         setStalls(dirRes?.data || []);
       })
       .finally(() => !cancelled && setLoading(false));
@@ -99,7 +94,7 @@ export default function StallDirectory() {
             <ZoomableMap
               src={mapUrl}
               alt="Venue stall layout"
-              wrapProps={{ onMouseLeave: () => setHover(null) }}
+              wrapProps={{ onMouseLeave: hideTip }}
               hint="Zoom in to read stall numbers · drag or scroll to move around · hover or tap a stall for details"
             >
               {visible.map((s) => (
@@ -107,11 +102,10 @@ export default function StallDirectory() {
                   key={s.stallNumber}
                   className={`map-marker status-${s.status} ${hover === s.stallNumber ? "is-hover" : ""}`}
                   style={{ left: `${s.mapX}%`, top: `${s.mapY}%`, cursor: "default" }}
-                  onMouseEnter={() => setHover(s.stallNumber)}
-                  onClick={() => setHover((h) => (h === s.stallNumber ? null : s.stallNumber))}
+                  {...markerProps(s.stallNumber)}
+                  onClick={(e) => toggleTip(s.stallNumber, e.currentTarget)}
                   role="button"
                   tabIndex={0}
-                  onFocus={() => setHover(s.stallNumber)}
                   aria-label={`${s.stallNumber}, ${packageLabel(s.packageCode)}, ${STATUS_LABEL[s.status] || s.status}${
                     s.owner ? `, booked by ${s.owner.companyName}` : ""
                   }`}
@@ -119,22 +113,8 @@ export default function StallDirectory() {
                   {s.stallNumber}
                 </div>
               ))}
-              {hovered && (
-                <div className="map-tooltip" style={{ left: `${hovered.mapX}%`, top: `${hovered.mapY}%` }}>
-                  <strong>
-                    {hovered.stallNumber} · {packageLabel(hovered.packageCode)}
-                  </strong>
-                  {hovered.status === "booked" && hovered.owner ? (
-                    <>
-                      <div>{hovered.owner.companyName || "—"}</div>
-                      {hovered.owner.contactPerson && <div className="tip-muted">{hovered.owner.contactPerson}</div>}
-                    </>
-                  ) : (
-                    <div className="tip-muted">{STATUS_LABEL[hovered.status] || hovered.status}</div>
-                  )}
-                </div>
-              )}
             </ZoomableMap>
+            <StallTip stall={hovered} tip={tip} packageLabel={packageLabel} />
             <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 10 }}>
               Booking details update live as the organizing team confirms registrations.
             </p>

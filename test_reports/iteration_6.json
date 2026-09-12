@@ -1,0 +1,42 @@
+{
+  "summary": "Bundled 146-stall final layout release fully verified. Backend: 7/7 pytest passing — public /api/public/stall-map returns bundled /api/files/*.png (200 image/png ~1.2MB) + 8 series (T/D/G/S/B/X/L/Y); /api/public/stall-directory returns exactly 146 stalls all with numeric mapX/mapY and rate-card counts (Gold 4, Silver 4, Bronze 4, Premium 32, Regular 27, Ruby 72, Title 1, Diamond 2); admin record GETs for exhibitors/visitors/enquiries by id work; background upload-map returns detection.status=running and GET /stalls/detection polls to done; apply-bundled-layout restores 146; invoice PDF returns application/pdf starting with %PDF for a confirmed exhibitor; visitor + enquiry registration succeed with no emailError and ackSent=true. Frontend: /stalls definitively renders — 'Loading the layout…' is gone, summary line '146 stalls on the map · 146 available · 0 reserved · 0 booked' shows, ZoomableMap toolbar (100% / − / + / Fit), img.map-picker-img src=/api/files/roar-expo/stall-maps/*.png with naturalWidth=1918 naturalHeight=820, and all 146 markers overlaid. Exhibitor registration page no longer shows a 'Number of Stalls' field (Summary panel says 'Stall: Auto-assigned later'). Home shows 'About the Expo' (old origin story gone), WhatsApp float button href=https://wa.me/919284182675?text=..., navbar has Enquiry + Stalls, 0 JS errors. Admin dashboard first card = 'APPROVED EXHIBITORS' with '0 pending approval · 0 total' subline, Actions column pinned right.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/exhibitors/register", "issue": "Occasional 500 from Emergent object-storage on logo upload (POST .../storage/objects/roar-expo/logos/*.png returned 500 during one run). Second attempt succeeded. Consider a 1-2 retry inside save_upload before surfacing 500 to the user."},
+      {"endpoint": "/api/files/{path}", "issue": "HEAD is not implemented (returns 405). Not currently used by the frontend, but conventional for CDN behaviour."},
+      {"endpoint": "/api/public/stall-directory", "issue": "Response includes MongoDB '_id'. Not a bug per se — client uses it — but the code-review guideline says to exclude raw '_id'. Consider projecting to 'id'."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home hero stats", "issues": ["Header shows '63+ STALLS' but the real published layout has 146 stalls; the stats block appears to be a static event_config number. Consider syncing with /api/public/stall-directory or updating the config."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_final_layout.py",
+    "/app/test_reports/pytest/iter6.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Wrap Emergent object-storage put in a small retry (2 attempts) inside utils.storage / middleware.upload so exhibitor registration doesn't 500 on a transient storage error.",
+    "OPTIONAL: Update the home-page STALLS stat (currently '63+') to reflect the 146-stall final layout."
+  ],
+  "critical_code_review_comments": [
+    "routers/admin.py is 1054 lines — well past the 700-line guideline. Split stall-map handlers (upload-map, detect-layout, apply-layout, apply-bundled-layout, map-series, generate-from-series) into a dedicated router file.",
+    "apply-bundled-layout uses a raw dict Body(None) instead of a Pydantic model — prefer a typed BundledLayoutRequest with keepOld: bool = False.",
+    "public/stall-directory leaks Mongo ObjectId as '_id' in the response — either project to 'id' or exclude '_id' via a serializer for consistency with review-guideline 'MongoDB ObjectId - Always exclude _id'.",
+    "GET /api/files/{path} swallows all storage errors as 404 'File not found'. Distinguish NotFound from network/auth failures for observability.",
+    "save_upload in middleware.upload does not retry on transient 5xx from object storage — one hiccup causes user-facing 500 on registration."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_final_layout.py (new)"
+  ],
+  "success_rate": {"backend": "100% (7/7 test_final_layout.py)", "frontend": "100% acceptance criteria"},
+  "test_credentials": "admin@roarexpo.com / Admin@12345 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Tests created TEST_ prefixed visitors/exhibitors/enquiries and dummy stall_maps rows; cleaned up TEST_ docs post-run (delete_many on ^test_/^TEST_). DB now has 146 stalls (unchanged, all with coords), 0 test exhibitors/enquiries, 1 residual visitor (not created by me), 10 stall_maps rows (test artefacts — a subsequent apply-bundled-layout will insert an 11th and keep 146; consider a housekeeping job to trim old stall_maps).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New regression file /app/backend/tests/test_final_layout.py covers: public stall-map + 146-stall directory + rate-card counts, admin stats shape, admin record fetch, background upload-map + detection polling + apply-bundled-layout restore, invoice PDF for confirmed exhibitor, and visitor/enquiry regression. Enquiry schema uses {name,email,mobile,details} (NOT phone/subject/message). Exhibitor register requires itsNumber, companyName, contactPerson, email, phone, businessAddress, category, stallPackage, fasciaName, agreedToTerms='true'. Emails are lowercased on write. Registration endpoints return only {registrationCode} in data — no _id — so look-ups go via admin lists filtered by registrationCode/email. Frontend URL from env: https://code-fetch-43.preview.emergentagent.com. /stalls DOES render the map for real users — confirmed via headless Chromium: 'Loading the layout…' disappears, ZoomableMap loads /api/files/roar-expo/stall-maps/*.png (naturalWidth=1918, naturalHeight=820), all 146 markers overlay, 0 JS errors."
+}

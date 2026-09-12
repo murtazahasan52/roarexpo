@@ -278,3 +278,56 @@ def visitor_alert_html(visitor: dict) -> str:
     <p style="margin-bottom:0;color:#666;font-size:12px;">The full list is in the admin dashboard &rarr; <strong>Visitors</strong>.</p>
   """
     return _wrap(inner)
+
+
+def _site_url(path: str = "") -> str:
+    import os
+    base = (os.environ.get("PUBLIC_SITE_URL") or "").rstrip("/")
+    return f"{base}{path}" if base else path
+
+
+def exhibitor_rejected_email_html(exhibitor: dict) -> str:
+    """Sent when the organizing team rejects a registration: the stall (if any)
+    has been released and the exhibitor is invited to register again."""
+    stall = exhibitor.get("stallNumber")
+    stall_line = (
+        f"<p>Stall <strong>{_esc(stall)}</strong> that you had picked has been released and is open to other exhibitors.</p>"
+        if stall else ""
+    )
+    inner = f"""
+    <h2 style="margin-top:0;color:#0c1a33;">About your stall registration</h2>
+    <p>Dear {_esc(exhibitor.get('contactPerson'))},</p>
+    <p>Thank you for your interest in <strong>{EVENT['eventName']}</strong>. We're sorry — the organizing team was
+      not able to confirm the registration <strong>{_esc(exhibitor.get('registrationCode'))}</strong> for
+      <strong>{_esc(exhibitor.get('companyName'))}</strong> at this time.</p>
+    {stall_line}
+    <p>If you would like to take part, you're welcome to register again (you can pick any stall that is still
+      available on the live map) or reply to this email and our team will help you.</p>
+    <p style="margin:22px 0;"><a href="{_esc(_site_url('/register/exhibitor'))}" style="background:#f2a93b;color:#0c1a33;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px;display:inline-block;">Register again</a></p>
+    <p style="margin-bottom:0;">Team ROAR Expo</p>
+  """
+    return _wrap(inner)
+
+
+def exhibitor_reopened_email_html(exhibitor: dict, *, stall_kept: bool) -> str:
+    """Sent when an admin reopens a rejected registration: it is pending again
+    and the exhibitor is asked to review / complete their details."""
+    stall = exhibitor.get("stallNumber")
+    if stall and stall_kept:
+        stall_line = f"<p>Stall <strong>{_esc(stall)}</strong> is reserved for you again, pending confirmation.</p>"
+    else:
+        stall_line = ("<p>The stall you had originally picked is no longer available. Please reply with the stall you'd like "
+                      "from the live map, or register again to choose one.</p>")
+    inner = f"""
+    <h2 style="margin-top:0;color:#0c1a33;">Your registration has been reopened</h2>
+    <p>Dear {_esc(exhibitor.get('contactPerson'))},</p>
+    <p>Good news — the organizing team has reopened registration <strong>{_esc(exhibitor.get('registrationCode'))}</strong>
+      for <strong>{_esc(exhibitor.get('companyName'))}</strong> at <strong>{EVENT['eventName']}</strong>. It is now
+      <strong>pending approval</strong> again.</p>
+    {stall_line}
+    <p>Please check that your details are complete and up to date. If anything has changed, fill in the registration
+      form again with the correct details, or simply reply to this email with the corrections.</p>
+    <p style="margin:22px 0;"><a href="{_esc(_site_url('/register/exhibitor'))}" style="background:#f2a93b;color:#0c1a33;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px;display:inline-block;">Open the registration form</a></p>
+    <p style="margin-bottom:0;">Team ROAR Expo</p>
+  """
+    return _wrap(inner)

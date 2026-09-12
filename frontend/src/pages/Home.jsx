@@ -11,7 +11,6 @@ import orangeImg from "../assets/roar-orange.png";
 import tigerImg from "../assets/roar-tiger.png";
 import economicAffairsLogo from "../assets/economic-affairs-logo.png";
 import dbohraLogo from "../assets/dbohra-logo.png";
-import syednaSermonImg from "../assets/syedna-sermon-badri-masjid.jpg";
 
 const exhibitBenefits = [
   { icon: "users", title: "Meet Qualified Buyers", desc: "Connect face-to-face with serious buyers, distributors and decision-makers across 16+ industries." },
@@ -98,29 +97,37 @@ export default function Home() {
           </Reveal>
 
           <Reveal delay={60}>
-            <div className="about-origin-layout">
-              <div className="about-origin-photo">
-                <img
-                  src={syednaSermonImg}
-                  alt="Syedna Aali Qadr Mufaddal Saifuddin (TUS) delivering his sermon in Badri Masjid, Nagpur, on the Urs Mubarak of Syedna Ismail Badruddin (RA)"
-                />
-              </div>
-              <div className="card about-origin-card">
-                <p style={{ marginBottom: 14 }}>
-                  In year 2024, Syedna Aali Qadr Mufaddal Saifuddin (TUS), the 53rd Spiritual Leader
-                  of The Dawoodi Bohra Community, blessed Nagpur with His Qadam Mubarak.
-                </p>
-                <p style={{ marginBottom: 14 }}>
-                  In his sermon in Badri Masjid on the Urs Mubarak of Syedna Ismail Badruddin (RA),
-                  Maula emphasized on the characteristics of Rose, Tiger, and Orange.
-                </p>
-                <p style={{ marginBottom: 14 }}>
-                  By taking Barakat from his bayan mubarak and Maula's focus on becoming Business
-                  Minded, we Nagpur Momineen decided to come up with a grand business expo and
-                  attain khushi mubarak of Our Maula.
-                </p>
-                <p style={{ marginBottom: 0, fontWeight: 600, color: "var(--text-heading)" }}>Hence, the name ROAR.</p>
-              </div>
+            <div className="card about-expo-card">
+              <div className="eyebrow" style={{ marginBottom: 10 }}>About the Expo</div>
+              <p>
+                <strong>ROAR Business Expo Nagpur 2027</strong> is envisioned as a platform to bring together
+                Dawoodi Bohra businessmen, entrepreneurs, manufacturers, traders, professionals and service
+                providers from across India under one roof. The Expo will provide participating businesses with
+                an opportunity to showcase their products, services and capabilities to a wider and diverse
+                audience, while creating meaningful business connections beyond their existing geographical
+                markets.
+              </p>
+              <p>
+                With <strong>100+ stalls</strong> and visitors from all communities, the Expo aims to create
+                opportunities for new customers, suppliers, distributors, dealers, business partners and
+                collaborations. It will particularly benefit young and emerging entrepreneurs by giving them
+                market exposure and an opportunity to interact with established businesses.
+              </p>
+              <p>
+                The Expo will also encourage{" "}
+                <strong>
+                  business networking, sourcing, procurement, dealership and distribution opportunities,
+                  strategic partnerships and long-term commercial relationships
+                </strong>
+                . With Nagpur&rsquo;s central location and connectivity, the event can serve as a bridge
+                connecting businesses from North, South, East, West and Central India.
+              </p>
+              <p style={{ marginBottom: 0 }}>
+                <strong>ROAR Business Expo Nagpur 2027</strong> aims to go beyond a traditional exhibition by
+                creating a sustainable business platform that promotes Mumineen businesses, encourages
+                entrepreneurship, expands market reach and strengthens the overall business network, while
+                opening the doors to a broader customer base from all communities.
+              </p>
             </div>
           </Reveal>
 

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "../api";
-import { BASE_URL } from "../api";
+import { api, fileUrl } from "../api";
 import { useEventConfig } from "../hooks/useEventConfig";
 import LayoutApplyModal from "./LayoutApplyModal";
 import ZoomableMap from "./ZoomableMap";
@@ -19,9 +18,7 @@ const STATUS_BADGE = {
   blocked: "badge-gray",
 };
 
-// Static uploads are served from the backend origin, not the /api base —
-// strip the trailing /api to get the file host.
-const FILE_ORIGIN = BASE_URL.replace(/\/api\/?$/, "");
+// Uploaded files are served under the API base (see api.fileUrl).
 
 const initialForm = { stallNumber: "", packageCode: "", size: "", rate: "" };
 
@@ -59,9 +56,12 @@ export default function StallsPanel({ token }) {
   const [generating, setGenerating] = useState(false);
 
   // ---------- Auto-detected layout (confirm once, then apply) ----------
-  const [detection, setDetection] = useState(null); // result of upload / "Detect stalls"
-  const [detecting, setDetecting] = useState(false);
+  const [detection, setDetection] = useState(null); // opens the confirm dialog when set
+  const [detecting, setDetecting] = useState(false); // background job running on the server
+  const [pendingDetection, setPendingDetection] = useState(null); // finished, not yet applied
+  const [detectError, setDetectError] = useState("");
   const [applyMsg, setApplyMsg] = useState("");
+  const pollRef = useRef(null);
 
   // ---------- Place Stalls on Map ----------
   const [placeCategory, setPlaceCategory] = useState("");
@@ -189,9 +189,11 @@ export default function StallsPanel({ token }) {
         setMapInfo(res.data);
         setSeriesRows((res.data.series || []).map((s) => ({ ...s })));
         setSeriesDirty(false);
-        // The server has already looked for stall boxes on the new drawing —
-        // open the one-time confirmation so the admin can apply them.
-        if (res.data.detection) setDetection(res.data.detection);
+        // The server is now looking for stall boxes on the new drawing in
+        // the background — poll until it's done, then open the one-time
+        // confirmation so the admin can apply them.
+        setApplyMsg("");
+        startPolling();
       }
       setMapFile(null);
       setMapPreview("");
@@ -203,21 +205,100 @@ export default function StallsPanel({ token }) {
     }
   }
 
-  async function handleDetect() {
+  // ---- Background detection: poll the server until the job finishes ----
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    setDetecting(false);
+  }, []);
+
+  const checkDetection = useCallback(
+    async (openWhenDone) => {
+      try {
+        const res = await api.adminDetectionStatus(token);
+        const det = res.data?.detection;
+        if (!det || det.status === "none") {
+          stopPolling();
+          return;
+        }
+        if (det.status === "running") {
+          setDetecting(true);
+          return;
+        }
+        stopPolling();
+        if (det.status === "error") {
+          setDetectError(det.error || "Detection failed");
+          setPendingDetection(null);
+          return;
+        }
+        setDetectError("");
+        if (det.applied) {
+          setPendingDetection(null);
+          return;
+        }
+        setPendingDetection(det);
+        if (openWhenDone) setDetection(det);
+      } catch (err) {
+        stopPolling();
+        setDetectError(err.message || "Could not check detection status");
+      }
+    },
+    [token, stopPolling]
+  );
+
+  const startPolling = useCallback(() => {
     setDetecting(true);
+    setDetectError("");
+    setPendingDetection(null);
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => checkDetection(true), 2500);
+  }, [checkDetection]);
+
+  // On load: is there a finished detection the admin never applied (e.g. the
+  // page was closed while it ran)? Offer it again rather than losing it.
+  useEffect(() => {
+    checkDetection(false);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [checkDetection]);
+
+  const [bundling, setBundling] = useState(false);
+  async function handleApplyBundled() {
+    if (!window.confirm("Publish the final venue layout bundled with the app and create all its stalls? Existing bookings are kept; sample stalls that are not on the final drawing and are still available will be removed."))
+      return;
+    setBundling(true);
     setApplyMsg("");
+    setDetectError("");
     try {
-      const res = await api.adminDetectLayout(token);
-      setDetection(res.data?.detection || { ok: false, boxes: [], rows: [], prefixes: [] });
+      const res = await api.adminApplyBundledLayout(token);
+      setPendingDetection(null);
+      setApplyMsg(res.message || "Final layout published");
+      await loadMap();
+      await loadStalls();
     } catch (err) {
-      setApplyMsg(err.message || "Failed to detect stalls");
+      setDetectError(err.message || "Could not publish the bundled layout");
     } finally {
-      setDetecting(false);
+      setBundling(false);
+    }
+  }
+
+  async function handleDetect() {
+    setApplyMsg("");
+    setDetectError("");
+    try {
+      await api.adminDetectLayout(token);
+      startPolling();
+    } catch (err) {
+      setDetectError(err.message || "Failed to start detection");
     }
   }
 
   function handleApplied(message) {
     setDetection(null);
+    setPendingDetection(null);
     setApplyMsg(message);
     loadStalls();
     loadMap();
@@ -285,6 +366,7 @@ export default function StallsPanel({ token }) {
 
   function holderLabel(s) {
     const holder = s.status === "booked" ? s.bookedBy : s.status === "held" ? s.heldBy : null;
+    if (!holder && s.formHold) return "Reserved — exhibitor filling in the form (expires in a few minutes)";
     if (!holder) return "—";
     return `${holder.companyName || "—"} (${holder.registrationCode || ""})`;
   }
@@ -396,11 +478,37 @@ export default function StallsPanel({ token }) {
           </div>
         )}
         {mapError && <div className="alert alert-error">{mapError}</div>}
+        {detecting && (
+          <div className="alert" style={{ background: "#fff8e6", color: "#7a5200", border: "1px solid #f3dfa6" }}>
+            <span className="spinner-dot" /> Reading the stall numbers on your layout… this takes about 20–60 seconds.
+            The confirmation will open automatically — you can keep working meanwhile.
+          </div>
+        )}
+        {!detecting && detectError && (
+          <div className="alert alert-error">
+            <strong>Automatic detection didn't work:</strong> {detectError}
+            <div style={{ marginTop: 6, fontSize: 12.5 }}>
+              You can still add stalls with <strong>Manual option A</strong> (series mapping) and place them with{" "}
+              <strong>Manual option B</strong> below, or fix the drawing and click <strong>Detect stalls on this layout</strong>.
+            </div>
+          </div>
+        )}
+        {!detecting && !detection && pendingDetection && (
+          <div className="alert" style={{ background: "#eefbf1", color: "#1d5a2e", border: "1px solid #bfe6c8", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <span>
+              <strong>{pendingDetection.boxes?.filter((b) => b.label && !b.ignored).length || 0} stalls</strong> were detected on the current
+              layout but haven't been applied yet.
+            </span>
+            <button type="button" className="btn btn-primary" style={{ padding: "6px 16px", fontSize: 13 }} onClick={() => setDetection(pendingDetection)}>
+              Review &amp; apply
+            </button>
+          </div>
+        )}
         <div className="logo-upload-row">
           {(mapPreview || mapUrl) && (
             <img
               className="stall-map-preview"
-              src={mapPreview || `${FILE_ORIGIN}${mapUrl}`}
+              src={mapPreview || fileUrl(mapUrl)}
               alt="Stall map preview"
               style={{ maxWidth: 220 }}
             />
@@ -436,6 +544,16 @@ export default function StallsPanel({ token }) {
                 {detecting ? "Detecting…" : "Detect stalls on this layout"}
               </button>
             )}
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ padding: "8px 18px", alignSelf: "flex-start" }}
+              onClick={handleApplyBundled}
+              disabled={bundling || detecting}
+              title="Publish the final venue drawing shipped with the app, with all its stalls already placed"
+            >
+              {bundling ? "Publishing…" : "Use the final ROAR layout (141 stalls)"}
+            </button>
           </div>
         </div>
       </div>
@@ -443,7 +561,7 @@ export default function StallsPanel({ token }) {
       {detection && (
         <LayoutApplyModal
           token={token}
-          mapUrl={`${FILE_ORIGIN}${mapUrl}`}
+          mapUrl={fileUrl(mapUrl)}
           detection={detection}
           onClose={() => setDetection(null)}
           onApplied={handleApplied}
@@ -619,7 +737,7 @@ export default function StallsPanel({ token }) {
                 </div>
               )}
               <ZoomableMap
-                src={`${FILE_ORIGIN}${mapUrl}`}
+                src={fileUrl(mapUrl)}
                 alt="Stall map for placement"
                 wrapClassName="map-place-wrap"
                 imgClassName="map-place-img"

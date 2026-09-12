@@ -148,6 +148,13 @@ export default function LayoutApplyModal({ token, mapUrl, detection, onClose, on
         <div className="modal-body">
           {noBoxes ? (
             <p style={{ color: "var(--text-muted)" }}>
+              {detection?.error && (
+                <>
+                  <strong style={{ color: "var(--rose-500)" }}>{detection.error}</strong>
+                  <br />
+                  <br />
+                </>
+              )}
               Detection works best on a clean drawing where every stall is a closed rectangle with its number
               printed inside. Try a sharper export (PNG/PDF straight from the drawing tool rather than a photo), or
               use <strong>Place each stall</strong> below to position stalls by hand.

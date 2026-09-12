@@ -40,6 +40,8 @@ def new_stall_document(stall_number: str, package_code: str, rate: float, size: 
         "status": "available",
         "heldBy": None,
         "bookedBy": None,
+        "tempHoldToken": None,      # set while an exhibitor is filling the form (see utils/stall_holds.py)
+        "tempHoldExpiresAt": None,
         "mapX": None,
         "mapY": None,
         "createdAt": now,

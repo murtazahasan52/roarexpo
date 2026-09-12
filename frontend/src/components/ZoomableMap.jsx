@@ -16,10 +16,30 @@ const MIN_READABLE_WIDTH = 900; // px — the drawing opens at least this wide s
 
 export default function ZoomableMap({ src, alt, imgClassName = "map-picker-img", wrapClassName = "map-picker-wrap", wrapProps = {}, children, maxHeight = "72vh", hint }) {
   const scrollerRef = useRef(null);
+  const imgRef = useRef(null);
   const [zoom, setZoom] = useState(1);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [ready, setReady] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const drag = useRef(null);
+
+  // Full-screen view: the map takes the whole screen (phones can turn
+  // landscape), with its own zoom controls; Esc or the button closes it.
+  function toggleFullscreen() {
+    setFullscreen((f) => !f);
+    setReady(false); // pick a readable opening zoom for the new size
+  }
+  useEffect(() => {
+    if (!fullscreen) return undefined;
+    const onKey = (e) => e.key === "Escape" && toggleFullscreen();
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [fullscreen]);
 
   // Measure the viewport and pick an opening zoom that makes the drawing
   // readable: full width on a laptop, ~2.5× on a phone.
@@ -31,9 +51,16 @@ export default function ZoomableMap({ src, alt, imgClassName = "map-picker-img",
       if (!w) return;
       setViewportWidth(w);
       if (!ready) {
-        const wanted = MIN_READABLE_WIDTH / w;
+        let wanted = MIN_READABLE_WIDTH / w;
+        // Full screen: also use the height — a wide drawing on a laptop would
+        // otherwise sit small in the middle of the screen.
+        const img = imgRef.current;
+        if (fullscreen && img && img.naturalWidth && el.clientHeight) {
+          const fillHeight = el.clientHeight / (w * (img.naturalHeight / img.naturalWidth));
+          wanted = Math.max(wanted, fillHeight);
+        }
         const initial = ZOOM_STEPS.reduce((best, z) => (z >= wanted && best === null ? z : best), null) ?? ZOOM_STEPS[ZOOM_STEPS.length - 1];
-        setZoom(w >= MIN_READABLE_WIDTH ? 1 : initial);
+        setZoom(wanted <= 1 ? 1 : initial);
         setReady(true);
       }
     };
@@ -45,7 +72,8 @@ export default function ZoomableMap({ src, alt, imgClassName = "map-picker-img",
       if (ro) ro.disconnect();
       else window.removeEventListener("resize", measure);
     };
-  }, [ready]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, fullscreen]);
 
   // Keep the point under the middle of the viewport fixed while zooming.
   function changeZoom(next) {
@@ -114,7 +142,7 @@ export default function ZoomableMap({ src, alt, imgClassName = "map-picker-img",
   const wrapStyle = { width: viewportWidth ? `${Math.round(viewportWidth * zoom)}px` : "100%", ...(wrapProps.style || {}) };
 
   return (
-    <div className="zoom-map">
+    <div className={`zoom-map ${fullscreen ? "is-fullscreen" : ""}`}>
       <div className="zoom-map-toolbar">
         <div className="zoom-map-controls" role="group" aria-label="Map zoom">
           <button type="button" onClick={zoomOut} disabled={zoom <= 1} aria-label="Zoom out">
@@ -127,13 +155,16 @@ export default function ZoomableMap({ src, alt, imgClassName = "map-picker-img",
           <button type="button" className="zoom-map-fit" onClick={() => changeZoom(1)} disabled={zoom === 1}>
             Fit
           </button>
+          <button type="button" className="zoom-map-fit zoom-map-full" onClick={toggleFullscreen} aria-pressed={fullscreen}>
+            {fullscreen ? "✕ Close" : "⛶ Full screen"}
+          </button>
         </div>
-        <span className="zoom-map-hint">{hint || "Zoom in to read stall numbers · drag or scroll to move around the map"}</span>
+        <span className="zoom-map-hint">{fullscreen ? "Pinch or use + / − to zoom · drag to move · Esc to close" : hint || "Zoom in to read stall numbers · drag or scroll to move around the map"}</span>
       </div>
       <div
         ref={scrollerRef}
         className={`zoom-map-scroller ${zoom > 1 ? "is-zoomed" : ""}`}
-        style={{ maxHeight }}
+        style={{ maxHeight: fullscreen ? "calc(100vh - 64px)" : maxHeight }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -141,7 +172,7 @@ export default function ZoomableMap({ src, alt, imgClassName = "map-picker-img",
         onPointerCancel={onPointerUp}
       >
         <div {...wrapProps} className={`${wrapClassName} ${wrapProps.className || ""}`} style={wrapStyle}>
-          <img src={src} alt={alt} className={imgClassName} draggable={false} />
+          <img ref={imgRef} src={src} alt={alt} className={imgClassName} draggable={false} onLoad={() => setReady(false)} />
           {children}
         </div>
       </div>

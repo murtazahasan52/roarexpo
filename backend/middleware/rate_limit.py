@@ -9,6 +9,7 @@ FastAPI dependency usage:
     Depends(rate_limit("register-exhibitor", max_requests=10, window_seconds=15*60,
                         message="Too many registration attempts. Please try again later."))
 """
+import os
 import time
 from collections import defaultdict, deque
 
@@ -29,7 +30,18 @@ def _client_ip(request: Request) -> str:
 
 
 def rate_limit(name: str, *, max_requests: int, window_seconds: int, message: str):
+    # RATE_LIMIT_SCALE=3 triples every limit (useful when the host's proxy hides
+    # visitors' real IPs so everyone shares one bucket); RATE_LIMIT_SCALE=0 switches
+    # the limiter off entirely.
+    try:
+        scale = float(os.environ.get("RATE_LIMIT_SCALE", "1"))
+    except ValueError:
+        scale = 1.0
+    max_requests = int(max_requests * scale)
+
     async def _dep(request: Request):
+        if scale <= 0:
+            return
         key = f"{name}:{_client_ip(request)}"
         now = time.monotonic()
         bucket = _buckets[key]

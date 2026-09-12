@@ -121,12 +121,14 @@ def _find_boxes(img, gray) -> list[dict]:
     import numpy as np
 
     h, w = gray.shape
-    light = (gray > LIGHT_THRESHOLD).astype("uint8")
-    boxes = _components_to_boxes(light, w, h)
-
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     sat = hsv[:, :, 1].astype(int)
     val = hsv[:, :, 2].astype(int)
+    # "Light" means near-white: bright AND unsaturated. A bright coloured
+    # outline (a yellow or cyan border) is NOT light, otherwise the box
+    # interior would leak through its own border into the page background.
+    light = ((val > LIGHT_THRESHOLD) & (sat < 60)).astype("uint8")
+    boxes = _components_to_boxes(light, w, h)
     # Saturated fills and neutral-grey fills are labelled SEPARATELY: a
     # coloured stall drawn on a grey platform (the title stall on a stage)
     # would otherwise merge with the platform into one big non-box blob.
@@ -341,6 +343,15 @@ def _infer_from_sequence(boxes: list[dict], rows: list[list[int]]) -> None:
             seq = [i for i in row if boxes[i]["prefix"] == prefix or (not boxes[i]["label"] and not boxes[i]["ignored"])]
             nums = [boxes[i]["number"] if boxes[i]["prefix"] == prefix else None for i in seq]
 
+            # Rows are numbered left→right OR right→left (a drawing often
+            # snakes back on the next row) — read the direction off the
+            # labelled neighbours before trusting any of them.
+            trend = 0
+            for k in range(len(seq) - 1):
+                if nums[k] is not None and nums[k + 1] is not None and _adjacent(boxes[seq[k]], boxes[seq[k + 1]]):
+                    trend += (nums[k + 1] > nums[k]) - (nums[k + 1] < nums[k])
+            direction = -1 if trend < 0 else 1
+
             def support(k):
                 """(expected number, strength) from this box's adjacent
                 same-series neighbours. Strength 2 = both sides agree, or one
@@ -349,16 +360,20 @@ def _infer_from_sequence(boxes: list[dict], rows: list[list[int]]) -> None:
                 for step in (-1, 1):
                     j = k + step
                     if 0 <= j < len(seq) and nums[j] is not None and _adjacent(boxes[seq[k]], boxes[seq[j]]):
-                        exp = nums[j] - step
+                        exp = nums[j] - step * direction
                         jj = j + step
-                        strong = 0 <= jj < len(seq) and nums[jj] is not None and nums[jj] - 2 * step == exp
+                        strong = 0 <= jj < len(seq) and nums[jj] is not None and nums[jj] - 2 * step * direction == exp
                         cands.append((exp, 2 if strong else 1))
                 if not cands:
                     return None, 0
                 if len(cands) == 2:
-                    if cands[0][0] != cands[1][0]:
-                        return None, 0
-                    return cands[0][0], 2
+                    if cands[0][0] == cands[1][0]:
+                        return cands[0][0], 2
+                    # Neighbours disagree: trust the side backed by two
+                    # consecutive labels over a lone (possibly misread) one.
+                    if cands[0][1] != cands[1][1]:
+                        return max(cands, key=lambda c: c[1])
+                    return None, 0
                 return cands[0]
 
             for k, i in enumerate(seq):
@@ -378,6 +393,33 @@ def _infer_from_sequence(boxes: list[dict], rows: list[list[int]]) -> None:
                     if strength >= 2 or alt:
                         b.update({"label": f"{prefix}{exp}", "number": exp, "inferred": not alt})
                         nums[k] = exp
+
+
+_LOOKALIKES = {"I": "1", "L": "1", "S": "5", "O": "0", "Z": "2", "B": "8"}
+
+
+def _fix_letter_digit_confusions(boxes: list[dict]) -> None:
+    """Thin fonts make OCR read Y12 as 'YI2', Y51 as 'YS1', L19 as 'LI9': the
+    digit got swallowed into the prefix as a look-alike letter. Any rare
+    prefix that is a common prefix plus only look-alike letters is folded
+    back into that series with the letters turned into digits."""
+    counts: dict[str, int] = {}
+    for b in boxes:
+        if b["prefix"]:
+            counts[b["prefix"]] = counts.get(b["prefix"], 0) + 1
+    for b in boxes:
+        p = b["prefix"]
+        if not p:
+            continue
+        # Candidate parents: shorter prefixes that are clearly the real series
+        # (at least 3× as many boxes as this odd one).
+        parents = [q for q, n in counts.items() if len(q) < len(p) and n >= 3 * counts[p] and n >= 5]
+        for parent in sorted(parents, key=len, reverse=True):
+            tail = p[len(parent):]
+            if p.startswith(parent) and tail and all(ch in _LOOKALIKES for ch in tail):
+                digits = "".join(_LOOKALIKES[ch] for ch in tail) + str(b["number"])
+                b.update({"prefix": parent, "number": int(digits), "label": f"{parent}{int(digits)}"})
+                break
 
 
 def _resolve_duplicates(boxes: list[dict]) -> None:
@@ -458,6 +500,7 @@ def detect_layout(image_bytes: bytes) -> dict:
         else:
             add_box(rb["px"], rb["py"], rb["pw"], rb["ph"], text, parsed, candidates)
 
+    _fix_letter_digit_confusions(boxes)
     rows = _group_rows(boxes)
     _infer_from_sequence(boxes, rows)
     _resolve_duplicates(boxes)

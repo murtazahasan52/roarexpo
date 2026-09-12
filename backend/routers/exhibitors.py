@@ -1,3 +1,4 @@
+import re
 """
 Port of routes/exhibitors.js + controllers/exhibitorController.js. Accepts
 multipart/form-data (Form fields + an optional logo + up to 5 product image
@@ -23,12 +24,13 @@ from utils.validators import is_valid_email, is_valid_url
 from utils.whatsapp import send_whatsapp
 from utils.mailer import send_mail
 from utils.notify import notify_organizers
+from utils.stall_holds import claim_query, release_expired_holds
 
 router = APIRouter(prefix="/api/exhibitors", tags=["exhibitors"])
 
 _register_limiter = rate_limit(
     "register-exhibitor",
-    max_requests=10,
+    max_requests=40,
     window_seconds=15 * 60,
     message="Too many registration attempts. Please try again later.",
 )
@@ -60,6 +62,7 @@ async def register_exhibitor(
     stallPackage: str = Form(...),
     numberOfStalls: int = Form(1),
     stallNumber: str = Form(""),
+    holdToken: str = Form(""),
     fasciaName: str = Form(...),
     agreedToTerms: str = Form(...),
     logo: UploadFile | None = File(None),
@@ -67,14 +70,19 @@ async def register_exhibitor(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     errors = []
-    if not itsNumber.strip() or len(itsNumber.strip()) < 4:
-        errors.append({"msg": "Enter a valid ITS number", "param": "itsNumber"})
+    its_digits = re.sub(r"\D", "", itsNumber)
+    if len(its_digits) != 8:
+        errors.append({"msg": "ITS number must be exactly 8 digits", "param": "itsNumber"})
     if not contactPerson.strip():
         errors.append({"msg": "Name is required", "param": "contactPerson"})
     if not is_valid_email(email.strip()):
         errors.append({"msg": "A valid personal email is required", "param": "email"})
-    if len(phone.strip()) < 7:
-        errors.append({"msg": "A valid mobile number is required", "param": "phone"})
+    if len(re.sub(r"\D", "", phone)[-10:]) != 10 or not re.fullmatch(r"(\+?91[\s-]?)?[6-9]\d{9}", re.sub(r"[\s()-]", "", phone.strip())):
+        errors.append({"msg": "Enter a valid 10-digit Indian mobile number", "param": "phone"})
+    if whatsapp.strip() and not re.fullmatch(r"(\+?91[\s-]?)?[6-9]\d{9}", re.sub(r"[\s()-]", "", whatsapp.strip())):
+        errors.append({"msg": "Enter a valid 10-digit WhatsApp number", "param": "whatsapp"})
+    if pincode.strip() and not re.fullmatch(r"\d{6}", pincode.strip()):
+        errors.append({"msg": "Pincode must be 6 digits", "param": "pincode"})
     if not companyName.strip():
         errors.append({"msg": "Business/company name is required", "param": "companyName"})
     if not businessAddress.strip():
@@ -102,21 +110,26 @@ async def register_exhibitor(
         # available and hold it for them before we create the registration.
         stall = None
         if stallNumber:
+            await release_expired_holds(db)
             stall = await db.stalls.find_one({"stallNumber": stallNumber.strip().upper()})
             if not stall:
                 raise HTTPException(status_code=404, detail="That stall could not be found. Please pick another.")
-            if stall["status"] != "available":
+            mine = bool(holdToken) and stall.get("tempHoldToken") == holdToken and stall.get("heldBy") is None
+            if stall["status"] != "available" and not (stall["status"] == "held" and mine):
                 raise HTTPException(
-                    status_code=409, detail="That stall was just taken. Please pick another available stall."
+                    status_code=409,
+                    detail="Your reservation on that stall has expired or it was just taken. Please pick an available stall again.",
                 )
 
         logo_url = ""
         if logo is not None:
-            logo_url = await save_upload(logo, "logos", EXHIBITOR_FILE_MAX_BYTES)
+            filename = await save_upload(logo, "logos", EXHIBITOR_FILE_MAX_BYTES)
+            logo_url = f"/uploads/logos/{filename}"
 
         product_image_urls = []
         for img in productImages:
-            product_image_urls.append(await save_upload(img, "product-images", EXHIBITOR_FILE_MAX_BYTES))
+            filename = await save_upload(img, "product-images", EXHIBITOR_FILE_MAX_BYTES)
+            product_image_urls.append(f"/uploads/product-images/{filename}")
 
         registration_code = generate_registration_code("STL")
 
@@ -162,8 +175,8 @@ async def register_exhibitor(
         # dangling registration with no stall.
         if stall:
             claimed = await db.stalls.find_one_and_update(
-                {"_id": stall["_id"], "status": "available"},
-                {"$set": {"status": "held", "heldBy": doc["_id"]}},
+                await claim_query(db, stall["_id"], holdToken or None),
+                {"$set": {"status": "held", "heldBy": doc["_id"], "tempHoldToken": None, "tempHoldExpiresAt": None}},
                 return_document=True,
             )
             if not claimed:
@@ -219,5 +232,7 @@ async def register_exhibitor(
     except HTTPException:
         raise
     except Exception as err:  # noqa: BLE001
-        print("[exhibitor] registration error:", err)
-        raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
+        print("[exhibitor] registration error:", repr(err))
+        # Say exactly what failed — the form shows this in its error popup so
+        # the organizers can fix the cause (mail server, database, disk…).
+        raise HTTPException(status_code=500, detail=f"Something went wrong while saving your registration: {type(err).__name__}: {err}")

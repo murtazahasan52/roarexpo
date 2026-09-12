@@ -9,7 +9,6 @@ backend was restructured around it — see README.md for the full story on
 why this backend exists alongside the original Node one.
 """
 import os
-import pathlib
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -20,24 +19,35 @@ from fastapi import FastAPI, Request, HTTPException  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import JSONResponse, Response  # noqa: E402
-from fastapi.staticfiles import StaticFiles  # noqa: E402
 from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 from config.db import connect_db, close_db  # noqa: E402
 from routers import admin, enquiries, exhibitors, public, visitors  # noqa: E402
-from utils.storage import get_object, init_storage  # noqa: E402
-
-UPLOAD_ROOT = pathlib.Path(__file__).resolve().parent / "uploads"
+from seed.final_layout import ensure_final_layout  # noqa: E402
+from seed.admin_seed import ensure_owner_admin  # noqa: E402
+from utils.storage import init_storage, get_object  # noqa: E402
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await connect_db()
+    db = await connect_db()
     try:
         init_storage()
         print("[storage] Object storage initialized")
     except Exception as e:  # noqa: BLE001
         print("[storage] init failed (uploads will error until resolved):", e)
+    # The final venue layout ships with the app: publish it (map + all 141
+    # stalls with positions) the first time this version starts, so a fresh
+    # deployment comes up with the real venue and no admin step is needed.
+    try:
+        await ensure_final_layout(db)
+    except Exception as err:  # noqa: BLE001 — never block start-up on this
+        print("[layout] could not auto-publish the bundled layout:", err)
+    # A fresh database gets its owner admin from ADMIN_EMAIL / ADMIN_PASSWORD.
+    try:
+        await ensure_owner_admin(db)
+    except Exception as err:  # noqa: BLE001
+        print("[seed] could not create the owner admin:", err)
     yield
     await close_db()
 
@@ -68,7 +78,7 @@ async def add_uploads_cors_header(request: Request, call_next):
     cross-origin resource policy, same as helmet's crossOriginResourcePolicy
     override in the old server.js."""
     response = await call_next(request)
-    if request.url.path.startswith("/uploads"):
+    if request.url.path.startswith(("/uploads", "/api/uploads")):
         response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
     return response
 
@@ -79,20 +89,28 @@ async def health():
     return {"success": True, "message": "ROAR Expo API is running", "time": datetime.now(timezone.utc).isoformat()}
 
 
-@app.get("/api/files/{path:path}")
-async def serve_file(path: str):
-    """Serves images stored in Emergent object storage (exhibitor logos,
-    product images, stall maps, visitor ID cards). Public, since these are
-    shown on the registration site and in emails."""
+# Uploaded files (the venue map, logos, product images, ID cards) live in
+# Emergent object storage and are served back here at BOTH /api/uploads and
+# /uploads. Hosts route only /api/* to the backend, so the frontend always
+# builds file links through the API base (see api.fileUrl) — /api/uploads/...
+# works everywhere; /uploads/... is kept for older links in emails.
+async def _serve_upload(path: str):
     import asyncio
     try:
-        data, content_type = await asyncio.to_thread(get_object, path)
+        data, content_type = await asyncio.to_thread(get_object, f"roar-expo/{path}")
     except Exception:  # noqa: BLE001
         raise HTTPException(status_code=404, detail="File not found")
     return Response(content=data, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
 
 
-app.mount("/uploads", StaticFiles(directory=str(UPLOAD_ROOT)), name="uploads")
+@app.get("/api/uploads/{path:path}")
+async def serve_api_upload(path: str):
+    return await _serve_upload(path)
+
+
+@app.get("/uploads/{path:path}")
+async def serve_upload(path: str):
+    return await _serve_upload(path)
 
 app.include_router(public.router)
 app.include_router(exhibitors.router)
@@ -123,8 +141,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    print("[server] Unhandled error:", exc)
-    return JSONResponse(status_code=500, content={"success": False, "message": "Internal server error"})
+    print("[server] Unhandled error:", repr(exc))
+    return JSONResponse(status_code=500, content={"success": False, "message": f"Internal server error: {type(exc).__name__}: {exc}"})
 
 
 if __name__ == "__main__":

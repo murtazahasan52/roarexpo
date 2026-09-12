@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/visitors", tags=["visitors"])
 
 _register_limiter = rate_limit(
     "register-visitor",
-    max_requests=15,
+    max_requests=40,
     window_seconds=15 * 60,
     message="Too many registration attempts. Please try again later.",
 )
@@ -28,6 +28,10 @@ _register_limiter = rate_limit(
 
 def _public_backend_url(relative_path: str) -> str:
     base = (os.environ.get("PUBLIC_BACKEND_URL") or "").rstrip("/")
+    # Files are reachable under /api/uploads too — the only path hosts such as
+    # Emergent forward to the backend.
+    if relative_path.startswith("/uploads/"):
+        relative_path = "/api" + relative_path
     return f"{base}{relative_path}"
 
 

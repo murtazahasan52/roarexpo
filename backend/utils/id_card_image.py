@@ -19,7 +19,7 @@ import qrcode
 from PIL import Image, ImageDraw, ImageFont
 
 from config.event_config import EVENT
-from utils.storage import upload_image_bytes
+from middleware.upload import put_object, storage_path
 
 CARD_W, CARD_H = 1120, 680
 
@@ -96,6 +96,6 @@ def _build_sync(visitor: dict) -> dict:
     buffer = buf.getvalue()
 
     filename = f"{visitor['registrationCode']}.png"
-    public_url = upload_image_bytes(buffer, "image/png", "id-cards")
+    put_object(storage_path("id-cards", filename), buffer, "image/png")
 
-    return {"buffer": buffer, "filename": filename, "public_url": public_url}
+    return {"buffer": buffer, "filename": filename, "public_url": f"/uploads/id-cards/{filename}"}

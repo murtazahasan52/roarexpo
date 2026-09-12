@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { useAdminAuth } from "../hooks/useAdminAuth";
 import AdminsPanel from "../components/AdminsPanel";
@@ -7,8 +7,6 @@ import StallsPanel from "../components/StallsPanel";
 import ScanCheckInPanel from "../components/ScanCheckInPanel";
 import EntranceQRPanel from "../components/EntranceQRPanel";
 import EnquiriesPanel from "../components/EnquiriesPanel";
-import ExhibitorEditModal from "../components/ExhibitorEditModal";
-import VisitorEditModal from "../components/VisitorEditModal";
 import CountUp from "../components/CountUp";
 
 async function downloadCSV(url, token, filename) {
@@ -94,7 +92,16 @@ export default function AdminDashboard() {
   const canSeeCheckedInStat = hasAny(permissions, "visitors", "scanning");
   const canSeeEnquiries = hasAny(permissions, "enquiries");
 
-  const [tab, setTab] = useState(availableTabs[0]);
+  // The active tab lives in the URL (?tab=visitors) so a record page's
+  // "← Dashboard" link — and the browser's Back button — return here.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const tab = availableTabs.includes(urlTab) ? urlTab : availableTabs[0];
+  const setTab = (t) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", t);
+    setSearchParams(next);
+  };
   const [stats, setStats] = useState({ exhibitorCount: 0, approvedExhibitorCount: 0, pendingExhibitorCount: 0, visitorCount: 0, checkedInCount: 0, newEnquiryCount: 0 });
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
@@ -105,9 +112,6 @@ export default function AdminDashboard() {
   const [checkInMsg, setCheckInMsg] = useState("");
   const [exporting, setExporting] = useState(false);
   const [invoicingId, setInvoicingId] = useState(null);
-  const [editingExhibitor, setEditingExhibitor] = useState(null);
-  const [viewingExhibitor, setViewingExhibitor] = useState(null);
-  const [editingVisitor, setEditingVisitor] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const limit = 20;
 
@@ -175,6 +179,21 @@ export default function AdminDashboard() {
   }, [loadRows]);
 
   const [decidingId, setDecidingId] = useState(null);
+
+  async function handleReopen(r) {
+    if (!window.confirm(`Reopen ${r.companyName}'s registration? It goes back to pending, their stall is reserved again if still free, and they are emailed to review their details.`)) return;
+    setDecidingId(r._id);
+    try {
+      const res = await api.adminReopenExhibitor(token, r._id);
+      alert(res.message || "Registration reopened");
+      loadRows();
+      loadStats();
+    } catch (err) {
+      alert(err.message || "Failed to reopen");
+    } finally {
+      setDecidingId(null);
+    }
+  }
 
   async function handleApprove(id) {
     setDecidingId(id);
@@ -354,7 +373,7 @@ export default function AdminDashboard() {
                       <th>Email Sent</th>
                       <th>WhatsApp</th>
                       <th>Registered</th>
-                      <th></th>
+                      <th className="row-actions-cell">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -403,7 +422,8 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td>{new Date(r.createdAt).toLocaleString()}</td>
-                        <td style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <td className="row-actions-cell">
+                          <div className="row-actions">
                           {canManageExhibitors && r.status === "pending" && (
                             <>
                               <button
@@ -429,21 +449,23 @@ export default function AdminDashboard() {
                               </button>
                             </>
                           )}
-                          <button
-                            className="btn btn-outline"
-                            style={{ padding: "6px 14px", fontSize: 12.5 }}
-                            onClick={() => setViewingExhibitor(r)}
-                          >
-                            View
-                          </button>
-                          {canManageExhibitors && (
+                          {canManageExhibitors && r.status === "cancelled" && (
                             <button
-                              className="btn btn-outline"
+                              className="btn btn-primary"
                               style={{ padding: "6px 14px", fontSize: 12.5 }}
-                              onClick={() => setEditingExhibitor(r)}
+                              onClick={() => handleReopen(r)}
+                              disabled={decidingId === r._id}
                             >
-                              Edit
+                              {decidingId === r._id ? "…" : "Reopen"}
                             </button>
+                          )}
+                          <Link to={`/admin/exhibitors/${r._id}`} className="btn btn-outline" style={{ padding: "6px 14px", fontSize: 12.5 }}>
+                            View
+                          </Link>
+                          {canManageExhibitors && (
+                            <Link to={`/admin/exhibitors/${r._id}?edit=1`} className="btn btn-outline" style={{ padding: "6px 14px", fontSize: 12.5 }}>
+                              Edit
+                            </Link>
                           )}
                           {canSeeInvoice && (
                             <button
@@ -465,6 +487,7 @@ export default function AdminDashboard() {
                               {deletingId === r._id ? "…" : "Delete"}
                             </button>
                           )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -492,7 +515,7 @@ export default function AdminDashboard() {
                       <th>Email Sent</th>
                       <th>WhatsApp</th>
                       <th>Registered</th>
-                      <th></th>
+                      <th className="row-actions-cell">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -525,14 +548,14 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td>{new Date(r.createdAt).toLocaleString()}</td>
-                        <td style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button
-                            className="btn btn-outline"
-                            style={{ padding: "6px 14px", fontSize: 12.5 }}
-                            onClick={() => setEditingVisitor(r)}
-                          >
+                        <td className="row-actions-cell">
+                          <div className="row-actions">
+                          <Link to={`/admin/visitors/${r._id}`} className="btn btn-outline" style={{ padding: "6px 14px", fontSize: 12.5 }}>
+                            View
+                          </Link>
+                          <Link to={`/admin/visitors/${r._id}?edit=1`} className="btn btn-outline" style={{ padding: "6px 14px", fontSize: 12.5 }}>
                             Edit
-                          </button>
+                          </Link>
                           <button
                             className="btn btn-outline btn-danger-outline"
                             style={{ padding: "6px 14px", fontSize: 12.5 }}
@@ -541,6 +564,7 @@ export default function AdminDashboard() {
                           >
                             {deletingId === r._id ? "…" : "Delete"}
                           </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -574,38 +598,6 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {editingExhibitor && (
-        <ExhibitorEditModal
-          exhibitor={editingExhibitor}
-          token={token}
-          onClose={() => setEditingExhibitor(null)}
-          onSaved={() => {
-            setEditingExhibitor(null);
-            loadRows();
-          }}
-        />
-      )}
-      {viewingExhibitor && (
-        <ExhibitorEditModal
-          exhibitor={viewingExhibitor}
-          token={token}
-          readOnly
-          onClose={() => setViewingExhibitor(null)}
-          onSaved={() => setViewingExhibitor(null)}
-        />
-      )}
-      {editingVisitor && (
-        <VisitorEditModal
-          visitor={editingVisitor}
-          token={token}
-          onClose={() => setEditingVisitor(null)}
-          onSaved={() => {
-            setEditingVisitor(null);
-            loadRows();
-            loadStats();
-          }}
-        />
-      )}
     </div>
   );
 }

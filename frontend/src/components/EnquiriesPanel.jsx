@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
-import Icon from "./Icon";
+import { Link } from "react-router-dom";
 
 async function downloadCSV(url, token, filename) {
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -30,10 +30,6 @@ export default function EnquiriesPanel({ token, onChange }) {
   const [busyId, setBusyId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
-  const [editing, setEditing] = useState(null);
-  const [editForm, setEditForm] = useState(null);
-  const [savingEdit, setSavingEdit] = useState(false);
-  const [editError, setEditError] = useState("");
   const limit = 20;
 
   const load = useCallback(async () => {
@@ -72,27 +68,6 @@ export default function EnquiriesPanel({ token, onChange }) {
       alert(err.message || "Failed to update enquiry");
     } finally {
       setBusyId(null);
-    }
-  }
-
-  function openEdit(row) {
-    setEditing(row);
-    setEditForm({ name: row.name || "", email: row.email || "", mobile: row.mobile || "", details: row.details || "" });
-    setEditError("");
-  }
-
-  async function saveEdit(e) {
-    e.preventDefault();
-    setSavingEdit(true);
-    setEditError("");
-    try {
-      await api.adminUpdateEnquiry(token, editing._id, editForm);
-      setEditing(null);
-      await load();
-    } catch (err) {
-      setEditError(err.message || "Failed to update enquiry");
-    } finally {
-      setSavingEdit(false);
     }
   }
 
@@ -162,7 +137,7 @@ export default function EnquiriesPanel({ token, onChange }) {
               <th>Mobile</th>
               <th>Enquiry</th>
               <th>Status</th>
-              <th>Action</th>
+              <th className="row-actions-cell">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -204,7 +179,11 @@ export default function EnquiriesPanel({ token, onChange }) {
                         {r.status === "handled" ? "Handled" : "New"}
                       </span>
                     </td>
-                    <td style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <td className="row-actions-cell">
+                      <div className="row-actions">
+                      <Link to={`/admin/enquiries/${r._id}`} className="btn btn-outline" style={{ padding: "6px 14px", fontSize: 13 }}>
+                        View
+                      </Link>
                       <button
                         className={`btn ${r.status === "handled" ? "btn-outline" : "btn-primary"}`}
                         style={{ padding: "6px 14px", fontSize: 13 }}
@@ -213,13 +192,9 @@ export default function EnquiriesPanel({ token, onChange }) {
                       >
                         {busyId === r._id ? "…" : r.status === "handled" ? "Reopen" : "Mark Handled"}
                       </button>
-                      <button
-                        className="btn btn-outline"
-                        style={{ padding: "6px 14px", fontSize: 13 }}
-                        onClick={() => openEdit(r)}
-                      >
+                      <Link to={`/admin/enquiries/${r._id}?edit=1`} className="btn btn-outline" style={{ padding: "6px 14px", fontSize: 13 }}>
                         Edit
-                      </button>
+                      </Link>
                       <button
                         className="btn btn-outline btn-danger-outline"
                         style={{ padding: "6px 14px", fontSize: 13 }}
@@ -228,6 +203,7 @@ export default function EnquiriesPanel({ token, onChange }) {
                       >
                         Delete
                       </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -236,50 +212,6 @@ export default function EnquiriesPanel({ token, onChange }) {
           </tbody>
         </table>
       </div>
-
-      {editing && editForm && (
-        <div className="modal-overlay" onClick={() => setEditing(null)}>
-          <div className="modal-panel card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 style={{ marginBottom: 0 }}>Edit Enquiry</h3>
-              <button className="modal-close" onClick={() => setEditing(null)} aria-label="Close">
-                <Icon name="close" />
-              </button>
-            </div>
-            {editError && <div className="alert alert-error">{editError}</div>}
-            <form onSubmit={saveEdit}>
-              <div className="modal-body">
-                <div className="form-row">
-                  <div className="field">
-                    <label>Name</label>
-                    <input required value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
-                  </div>
-                  <div className="field">
-                    <label>Mobile</label>
-                    <input required value={editForm.mobile} onChange={(e) => setEditForm((f) => ({ ...f, mobile: e.target.value }))} />
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Email</label>
-                  <input required type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
-                </div>
-                <div className="field">
-                  <label>Enquiry Details</label>
-                  <textarea required rows={6} value={editForm.details} onChange={(e) => setEditForm((f) => ({ ...f, details: e.target.value }))} />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-outline" onClick={() => setEditing(null)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={savingEdit}>
-                  {savingEdit ? "Saving…" : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {pageCount > 1 && (
         <div className="admin-tabs" style={{ marginTop: 16 }}>

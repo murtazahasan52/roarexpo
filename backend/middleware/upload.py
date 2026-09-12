@@ -1,18 +1,22 @@
 """
 Image/PDF upload validation + storage. Files arrive as FastAPI `UploadFile`
 params on each router endpoint. Bytes are persisted to Emergent object storage
-(see utils/storage.py) and the public URL ("/api/files/...") that the frontend
-and emails embed is returned. `read_upload` returns raw bytes for callers that
-need to transform them first (e.g. rendering a PDF layout to PNG).
+(see utils/storage.py) under `roar-expo/{subfolder}/{filename}`, and the
+unique filename is returned — callers build the same `/uploads/{subfolder}/{filename}`
+URL the old backend returned. Those URLs are served back (from object storage)
+by the GET /api/uploads/{path} route in server.py, so nothing is written to the
+pod-local disk (which is wiped on redeploy).
 """
-import asyncio
+import time
+import random
 import pathlib
+import asyncio
 
 from fastapi import HTTPException, UploadFile
 
-from utils.storage import upload_image_bytes
+from utils.storage import put_object, get_object  # noqa: F401 (get_object re-exported for server route)
 
-UPLOAD_ROOT = pathlib.Path(__file__).resolve().parent.parent / "uploads"
+STORAGE_APP = "roar-expo"
 
 IMAGE_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 
@@ -26,12 +30,26 @@ _EXT_CONTENT_TYPE = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
+    ".pdf": "application/pdf",
 }
 
 
+def _unique_filename(original_name: str) -> str:
+    ext = pathlib.Path(original_name or "").suffix
+    return f"{int(time.time() * 1000)}-{random.randint(0, 999999999)}{ext}"
+
+
+def storage_path(subfolder: str, filename: str) -> str:
+    return f"{STORAGE_APP}/{subfolder}/{filename}"
+
+
+def _content_type_for(filename: str, fallback: str = "image/png") -> str:
+    return _EXT_CONTENT_TYPE.get(pathlib.Path(filename).suffix.lower(), fallback)
+
+
 async def save_upload(file: UploadFile, subfolder: str, max_bytes: int) -> str:
-    """Validates an uploaded image and stores it in object storage, returning
-    its public URL ("/api/files/{path}") — callers store this URL directly."""
+    """Validates an uploaded image, stores it in object storage and returns its
+    unique filename (callers build the /uploads/{subfolder}/{filename} URL)."""
     if file.content_type not in IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Only PNG, JPG, or WEBP images are allowed")
 
@@ -39,7 +57,9 @@ async def save_upload(file: UploadFile, subfolder: str, max_bytes: int) -> str:
     if len(contents) > max_bytes:
         raise HTTPException(status_code=400, detail=f"File too large — max {max_bytes // (1024 * 1024)}MB")
 
-    return await asyncio.to_thread(upload_image_bytes, contents, file.content_type, subfolder)
+    filename = _unique_filename(file.filename or "")
+    await asyncio.to_thread(put_object, storage_path(subfolder, filename), contents, file.content_type)
+    return filename
 
 
 async def read_upload(file: UploadFile, allowed_types: set[str], max_bytes: int, type_error: str) -> bytes:
@@ -54,8 +74,9 @@ async def read_upload(file: UploadFile, allowed_types: set[str], max_bytes: int,
 
 
 def write_upload_bytes(contents: bytes, subfolder: str, original_name: str, force_ext: str | None = None) -> str:
-    """Uploads already-read/transformed bytes to object storage and returns the
-    public URL ("/api/files/{path}")."""
-    ext = (force_ext or pathlib.Path(original_name or "").suffix or ".png").lower()
-    content_type = _EXT_CONTENT_TYPE.get(ext, "image/png")
-    return upload_image_bytes(contents, content_type, subfolder)
+    """Stores already-read/transformed bytes in object storage; returns the filename."""
+    filename = _unique_filename(original_name)
+    if force_ext:
+        filename = pathlib.Path(filename).with_suffix(force_ext).name
+    put_object(storage_path(subfolder, filename), contents, _content_type_for(filename))
+    return filename

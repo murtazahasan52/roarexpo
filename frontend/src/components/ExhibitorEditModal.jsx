@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { api, BASE_URL } from "../api";
+import { api, fileUrl } from "../api";
 import { useEventConfig } from "../hooks/useEventConfig";
-import Icon from "./Icon";
+import RecordFrame from "./RecordFrame";
 
-// Uploaded files are served from the backend origin (BASE_URL minus "/api").
-const FILE_ORIGIN = BASE_URL.replace(/\/api\/?$/, "");
-const fileUrl = (path) => (path ? (path.startsWith("http") ? path : `${FILE_ORIGIN}${path}`) : "");
+// Uploaded files are served under the API base (see api.fileUrl).
+
 
 function fieldsFromExhibitor(exhibitor) {
   return {
@@ -47,7 +46,7 @@ const STALL_STATUS_LABEL = { available: "available", held: "pending confirmation
 // stall number is picked from the live list of stalls in the chosen
 // rate-card category (the exhibitor's current stall stays selectable even
 // though it's no longer "available").
-export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved, readOnly = false }) {
+export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved, readOnly = false, asPage = false, headerActions = null }) {
   const { config } = useEventConfig();
   const [form, setForm] = useState(() => fieldsFromExhibitor(exhibitor));
   const [saving, setSaving] = useState(false);
@@ -121,24 +120,14 @@ export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved,
   );
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel card" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div>
-            <h3 style={{ marginBottom: 2 }}>
-              {readOnly ? "Exhibitor Details" : "Edit Exhibitor"} — {exhibitor.registrationCode}
-            </h3>
-            <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-              {STATUS_LABEL[exhibitor.status] || exhibitor.status} · registered {new Date(exhibitor.createdAt).toLocaleString()}
-            </div>
-          </div>
-          <button className="modal-close" onClick={onClose} aria-label="Close">
-            <Icon name="close" />
-          </button>
-        </div>
-
-        {error && <div className="alert alert-error">{error}</div>}
-
+    <RecordFrame
+      asPage={asPage}
+      onClose={onClose}
+      title={`${readOnly ? "Exhibitor Details" : "Edit Exhibitor"} — ${exhibitor.registrationCode}`}
+      subtitle={`${STATUS_LABEL[exhibitor.status] || exhibitor.status} · registered ${new Date(exhibitor.createdAt).toLocaleString()}`}
+      error={error}
+      actions={headerActions}
+    >
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             <div className="modal-section-label">Stall Assignment</div>
@@ -319,7 +308,7 @@ export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved,
 
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>
-              {readOnly ? "Close" : "Cancel"}
+              {readOnly ? (asPage ? "Back" : "Close") : "Cancel"}
             </button>
             {!readOnly && (
               <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -328,7 +317,6 @@ export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved,
             )}
           </div>
         </form>
-      </div>
-    </div>
+    </RecordFrame>
   );
 }

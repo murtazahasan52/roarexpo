@@ -1,30 +1,63 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
-async function request(path, { method = "GET", body, token } = {}) {
-  const headers = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
+// Turns any failed call into an Error whose .message says exactly what went
+// wrong — the registration forms show it word for word in their error popup.
+//   .status   HTTP status (0 when the request never reached a server)
+//   .details  the JSON body when there was one ({ message, errors })
+//   .network  true when the browser could not connect at all
+function describeFailure(res, data, text) {
+  if (data && data.message) return data.message;
+  const snippet = (text || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+  const by = {
+    413: "The files you attached are too large for the server (HTTP 413). Please use smaller images — under 8 MB each.",
+    404: `The API address is wrong or the endpoint is missing (HTTP 404 at ${res.url}).`,
+    429: "Too many attempts from this connection. Please wait a few minutes and try again (HTTP 429).",
+    500: "The server hit an error while saving (HTTP 500).",
+    502: "The server is not reachable right now (HTTP 502 Bad Gateway) — the backend may be restarting. Please try again in a minute.",
+    503: "The server is temporarily unavailable (HTTP 503). Please try again in a minute.",
+    504: "The server took too long to answer (HTTP 504). Please try again.",
+  };
+  const base = by[res.status] || `The server refused the request (HTTP ${res.status} ${res.statusText || ""}).`.replace(/\s+\)/, ")");
+  return snippet && !by[res.status] ? `${base} ${snippet}` : base;
+}
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+async function send(path, init) {
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, init);
+  } catch (e) {
+    const error = new Error(
+      `Could not reach the server at ${BASE_URL} — check your internet connection, or the backend is down / blocked by the browser (${e && e.message ? e.message : "network error"}).`
+    );
+    error.status = 0;
+    error.network = true;
+    error.details = null;
+    throw error;
+  }
 
   let data = null;
+  let text = "";
   try {
-    data = await res.json();
+    text = await res.text();
+    data = text ? JSON.parse(text) : null;
   } catch (e) {
-    // non-JSON response (e.g. CSV download handled separately)
+    // non-JSON response (an HTML error page from a proxy, an empty body)
   }
 
   if (!res.ok) {
-    const message = (data && data.message) || `Request failed with status ${res.status}`;
-    const error = new Error(message);
+    const error = new Error(describeFailure(res, data, text));
+    error.status = res.status;
     error.details = data;
     throw error;
   }
 
   return data;
+}
+
+async function request(path, { method = "GET", body, token } = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return send(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
 }
 
 // Like request(), but sends a FormData body (multipart/form-data) instead of
@@ -34,24 +67,7 @@ async function request(path, { method = "GET", body, token } = {}) {
 async function requestForm(path, { method = "POST", formData, token } = {}) {
   const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;
-
-  const res = await fetch(`${BASE_URL}${path}`, { method, headers, body: formData });
-
-  let data = null;
-  try {
-    data = await res.json();
-  } catch (e) {
-    // non-JSON response
-  }
-
-  if (!res.ok) {
-    const message = (data && data.message) || `Request failed with status ${res.status}`;
-    const error = new Error(message);
-    error.details = data;
-    throw error;
-  }
-
-  return data;
+  return send(path, { method, headers, body: formData });
 }
 
 function toFormData(payload) {
@@ -71,12 +87,27 @@ function toFormData(payload) {
   return fd;
 }
 
+// Uploaded files (venue map, logos, product images) come from the API as
+// "/uploads/…" paths. They are served by the backend under the API base too
+// (…/api/uploads/…), which is the only path some hosts (Emergent) forward to
+// the backend — so every file link is built through BASE_URL.
+export function fileUrl(path) {
+  if (!path) return "";
+  if (/^(https?:)?\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:")) return path;
+  return `${BASE_URL.replace(/\/$/, "")}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
 export const api = {
+  baseUrl: BASE_URL,
+  fileUrl,
   getConfig: () => request("/public/config"),
   getStalls: (packageCode) => request(`/public/stalls${packageCode ? `?packageCode=${encodeURIComponent(packageCode)}` : ""}`),
   getStallMap: () => request("/public/stall-map"),
   getStallDirectory: () => request("/public/stall-directory"),
   registerExhibitor: (payload) => requestForm("/exhibitors/register", { formData: toFormData(payload) }),
+  holdStall: (stallNumber, previousToken) =>
+    request(`/public/stalls/${encodeURIComponent(stallNumber)}/hold`, { method: "POST", body: { previousToken: previousToken || null } }),
+  releaseStallHold: (holdToken) => request("/public/stalls/release-hold", { method: "POST", body: { holdToken } }),
   registerVisitor: (payload) => request("/visitors/register", { method: "POST", body: payload }),
   submitEnquiry: (payload) => request("/enquiries", { method: "POST", body: payload }),
   adminLogin: (payload) => request("/admin/login", { method: "POST", body: payload }),
@@ -88,6 +119,10 @@ export const api = {
   adminEntranceQR: (token) => request("/admin/visitors/entrance-qr", { token }),
   adminApproveExhibitor: (token, id) => request(`/admin/exhibitors/${id}/approve`, { method: "POST", token }),
   adminRejectExhibitor: (token, id) => request(`/admin/exhibitors/${id}/reject`, { method: "POST", token }),
+  adminReopenExhibitor: (token, id) => request(`/admin/exhibitors/${id}/reopen`, { method: "POST", token }),
+  adminGetExhibitor: (token, id) => request(`/admin/exhibitors/${id}`, { token }),
+  adminGetVisitor: (token, id) => request(`/admin/visitors/${id}`, { token }),
+  adminGetEnquiry: (token, id) => request(`/admin/enquiries/${id}`, { token }),
   adminEditExhibitor: (token, id, payload) => request(`/admin/exhibitors/${id}`, { method: "PATCH", body: payload, token }),
   adminDeleteExhibitor: (token, id) => request(`/admin/exhibitors/${id}`, { method: "DELETE", token }),
   adminEditVisitor: (token, id, payload) => request(`/admin/visitors/${id}`, { method: "PATCH", body: payload, token }),
@@ -116,6 +151,9 @@ export const api = {
   },
   adminSaveMapSeries: (token, series) => request("/admin/stalls/map-series", { method: "PUT", body: { series }, token }),
   adminDetectLayout: (token) => request("/admin/stalls/detect-layout", { method: "POST", token }),
+  adminDetectionStatus: (token) => request("/admin/stalls/detection", { token }),
+  adminApplyBundledLayout: (token, keepOld = false) =>
+    request("/admin/stalls/apply-bundled-layout", { method: "POST", body: { keepOld }, token }),
   // stalls: [{ stallNumber, packageCode, mapX, mapY }] — creates/updates them with positions
   adminApplyLayout: (token, series, stalls) =>
     request("/admin/stalls/apply-layout", { method: "POST", body: { series, stalls }, token }),

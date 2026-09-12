@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 7 — full-codebase-replacement build with DISK-served bundled 141-stall layout verified end-to-end. Backend: 7/7 pytest passing in test_iter7_disk_layout.py. GET /api/public/stall-map returns data.url == '/uploads/stall-maps/final-layout.png'. GET /api/uploads/stall-maps/final-layout.png returns 200 image/png (~3.9MB). GET /api/public/stall-directory returns exactly 141 stalls with numeric mapX/mapY; category breakdown matches rate card (Premium 30, Ruby 69, Title 1, Diamond 2, Gold 4, Silver 4, Bronze 4, Regular 27). Stall hold lifecycle works: POST /api/public/stalls/{n}/hold flips status to 'held' + returns holdToken, POST /api/public/stalls/release-hold with the token flips back to 'available'. Full admin flow works: register with holdToken -> reject (stall available) -> reopen (stall re-held) -> approve (stall booked) -> delete releases stall. Admin login (admin@roarexpo.com / Admin@12345) returns a token and the dashboard loads with exhibitor/visitor/enquiry tables. Visitor + enquiry regression endpoints return 200 with no emailError. Frontend: /stalls DEFINITIVELY renders for real users (Chromium 1920x1080). 'Loading the layout…' disappears, img.map-picker-img loads .../api/uploads/stall-maps/final-layout.png (naturalWidth=3200, naturalHeight=1378), summary line shows '141 stalls on the map · 137 available · 3 reserved · 1 booked', all 9 category-filter pills render (All + 8 packages), the zoom toolbar (100% / − / + / Fit / Full screen) renders, and 141 stall pin elements are overlaid on the artwork with 0 JS console errors. /register/exhibitor: selecting 'Ruby Stall' reveals the coloured map with 66 available (green) markers; clicking a green marker opens the reserve popup 'Reserve stall Y5?' with '15 minutes' hold copy and Reserve/Cancel buttons; confirming reserves and shows the countdown text + summary panel updates to 'Y5'. ITS/mobile validation shows inline errors ('ITS number must be exactly 8 digits (e.g. 20123456).'). Navbar (desktop 1920): visible header contains Home/About/Categories/Stalls/Contact + SINGLE Enquiry + Register as Visitor + Register as Exhibitor. The mobile-only 'Exhibit / Visit / Enquiry' anchors are present in DOM but computed to width=0/height=0 (correctly hidden on desktop). Home page renders 'About the Expo' section with 0 JS errors. Admin dashboard shows Exhibitors / Visitors / Enquiries tabs and the seeded test row.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/public/stall-directory", "issue": "Response still includes MongoDB '_id' (code-review guideline says to exclude raw _id and expose 'id' instead). Consistent with iter6 finding."},
+      {"endpoint": "/uploads/stall-maps/final-layout.png (bare, no /api prefix)", "issue": "Backend does mount /uploads on StaticFiles but the public preview ingress only routes /api/* to the backend, so bare /uploads returns the frontend HTML shell. Not a real bug for users (frontend uses /api/uploads via api.fileUrl), but the extra bare mount in server.py is dead code from behind the ingress."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home hero stats", "issues": ["Header still shows '100+ Stalls' / '100+ STALLS' but the published layout has exactly 141 stalls. Sync with /api/public/stall-directory count or update event_config."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter7_disk_layout.py",
+    "/app/test_reports/pytest/iter7.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Project /api/public/stall-directory items to 'id' instead of leaking raw MongoDB '_id'.",
+    "OPTIONAL: Update home hero '100+ Stalls' to reflect the real 141-stall layout (or drive from API)."
+  ],
+  "critical_code_review_comments": [
+    "routers/admin.py is still 1054 lines — split stall-map handlers (upload-map, detect-layout, apply-layout, apply-bundled-layout, map-series, generate-from-series) into a dedicated router.",
+    "public/stall-directory leaks Mongo ObjectId — violates the 'MongoDB ObjectId - Always exclude _id' guideline.",
+    "Mounting both /uploads and /api/uploads is unnecessary behind an ingress that only forwards /api/*; keep /api/uploads only to reduce surface area."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter7_disk_layout.py (new)"
+  ],
+  "success_rate": {"backend": "100% (7/7 test_iter7_disk_layout.py)", "frontend": "100% acceptance criteria (map, form, popup, admin, navbar, home)"},
+  "test_credentials": "admin@roarexpo.com / Admin@12345 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Tests created and cleaned up: TEST_ prefixed visitor + enquiry (deleted via admin), one exhibitor with stall Y11 (registration + rejected + reopened + approved then deleted; Y11 confirmed→released). Post-run non-available stalls: X15:held, Y1:held, Y10:held, Y5:held — these are 15-minute holds from the exhibitor-form Playwright walkthrough; they auto-release. No permanent booked leftovers.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "This build uses DISK-served files via /api/uploads (bundled 141-stall layout, not 146 like iter6). Endpoints: hold=POST /api/public/stalls/{stallNumber}/hold (returns data.holdToken, 15-min hold), release=POST /api/public/stalls/release-hold body={holdToken}. Exhibitor register accepts stallNumber + holdToken via multipart. Admin reopen only works on a REJECTED registration (not on confirmed) — order approve/reject/reopen tests accordingly. Admin exhibitor delete releases the linked stall. Stall status vocabulary is {available, held, reserved, booked}. Rate-card totals: Premium 30 + Ruby 69 = 99 chargeable; total 141. Frontend URL: https://code-fetch-43.preview.emergentagent.com. /stalls fully renders; img.map-picker-img with naturalWidth=3200 confirmed in a real Chromium session. /register/exhibitor renders the reserve popup with copy 'Reserve stall {N}?' and a 15-minute hold notice."
+}

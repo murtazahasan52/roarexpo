@@ -16,6 +16,7 @@ import VisitorRegistration from "./pages/VisitorRegistration";
 import RegistrationSuccess from "./pages/RegistrationSuccess";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminRecord from "./pages/AdminRecord";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -61,6 +62,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/:kind/:id"
+            element={
+              <ProtectedRoute>
+                <AdminRecord />
               </ProtectedRoute>
             }
           />

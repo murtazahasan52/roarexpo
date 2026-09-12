@@ -9,7 +9,7 @@ import csv
 import io
 import os
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 
 import qrcode
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
@@ -23,6 +23,7 @@ from middleware.auth import (
 )
 from middleware.rate_limit import rate_limit
 from middleware.upload import MAP_TYPES, STALL_MAP_MAX_BYTES, read_upload, write_upload_bytes
+from utils.storage import get_object
 from models.admin import PERMISSIONS, AdminCreateRequest, AdminLoginRequest
 from models.common import serialize_doc, serialize_list, to_object_id, utcnow
 from models.enquiry import ENQUIRY_CSV_COLUMNS, ENQUIRY_STATUS_VALUES
@@ -30,13 +31,13 @@ from models.exhibitor import EDITABLE_EXHIBITOR_FIELDS, EXHIBITOR_CSV_COLUMNS
 from models.stall import STALL_STATUS_VALUES, new_stall_document
 from models.stall_map import map_payload, new_stall_map_document, parse_series
 from models.visitor import VISITOR_CSV_COLUMNS
-from utils.email_templates import exhibitor_approved_email_html
+from utils.email_templates import exhibitor_approved_email_html, exhibitor_rejected_email_html, exhibitor_reopened_email_html
 from utils.hashing import hash_password, verify_password
 from utils.invoice import build_exhibitor_invoice_pdf
 from utils.pdf_to_image import pdf_first_page_to_png
 from utils.layout_detect import detect_layout, suggest_package_for_prefix
 from utils.mailer import send_mail
-from utils.storage import get_object
+from utils.stall_holds import release_expired_holds
 from utils.whatsapp import send_whatsapp
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -79,7 +80,7 @@ async def stats(admin: AdminPayload = Depends(require_admin), db: AsyncIOMotorDa
     can_see_enquiries = is_all or "enquiries" in permissions
 
     exhibitor_count = await db.exhibitors.count_documents({}) if can_see_exhibitors else 0
-    approved_exhibitor_count = await db.exhibitors.count_documents({"status": "approved"}) if can_see_exhibitors else 0
+    approved_exhibitor_count = await db.exhibitors.count_documents({"status": "confirmed"}) if can_see_exhibitors else 0
     pending_exhibitor_count = await db.exhibitors.count_documents({"status": "pending"}) if can_see_exhibitors else 0
     visitor_count = await db.visitors.count_documents({}) if can_see_visitors else 0
     checked_in_count = await db.visitors.count_documents({"checkedIn": True}) if can_see_checked_in else 0
@@ -143,6 +144,20 @@ async def export_exhibitors_csv(
         content=csv_text, media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=exhibitors.csv"},
     )
+
+
+# One exhibitor registration in full — the admin record page.
+@router.get("/exhibitors/{id}")
+async def get_exhibitor(
+    id: str,
+    admin: AdminPayload = Depends(require_any_resource(["exhibitors", "invoicing"])),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    exhibitor = await db.exhibitors.find_one({"_id": oid}) if oid else None
+    if not exhibitor:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+    return {"success": True, "data": serialize_doc(exhibitor)}
 
 
 @router.patch("/exhibitors/{id}")
@@ -296,13 +311,71 @@ async def reject_exhibitor(
 
     await db.exhibitors.update_one({"_id": oid}, {"$set": {"status": "cancelled", "updatedAt": utcnow()}})
 
+    # Release the stall so it is bookable again immediately.
     if exhibitor.get("stallId"):
         await db.stalls.update_one(
-            {"_id": exhibitor["stallId"]}, {"$set": {"status": "available", "heldBy": None, "bookedBy": None}},
+            {"_id": exhibitor["stallId"], "$or": [{"heldBy": oid}, {"bookedBy": oid}]},
+            {"$set": {"status": "available", "heldBy": None, "bookedBy": None, "tempHoldToken": None, "tempHoldExpiresAt": None,
+                      "updatedAt": utcnow()}},
         )
 
+    # Tell the exhibitor, with a link to register again.
+    try:
+        await send_mail(
+            to=exhibitor["email"],
+            subject=f"About your stall registration — {EVENT['eventName']}",
+            html=exhibitor_rejected_email_html(exhibitor),
+        )
+    except Exception as mail_err:  # noqa: BLE001
+        print("[exhibitor] Failed to send rejection email:", mail_err)
+
     updated = await db.exhibitors.find_one({"_id": oid})
-    return {"success": True, "message": "Exhibitor rejected and stall released", "data": serialize_doc(updated)}
+    return {"success": True, "message": "Exhibitor rejected, stall released and the exhibitor notified", "data": serialize_doc(updated)}
+
+
+# Reopen a rejected registration: pending again, the original stall is
+# re-held if it is still free, and the exhibitor is asked to review /
+# complete their details.
+@router.post("/exhibitors/{id}/reopen")
+async def reopen_exhibitor(
+    id: str, admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    exhibitor = await db.exhibitors.find_one({"_id": oid}) if oid else None
+    if not exhibitor:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+    if exhibitor["status"] != "cancelled":
+        raise HTTPException(status_code=409, detail="Only a rejected registration can be reopened")
+
+    stall_kept = False
+    if exhibitor.get("stallId"):
+        held = await db.stalls.find_one_and_update(
+            {"_id": exhibitor["stallId"], "status": "available"},
+            {"$set": {"status": "held", "heldBy": oid, "bookedBy": None, "tempHoldToken": None, "tempHoldExpiresAt": None,
+                      "updatedAt": utcnow()}},
+            return_document=True,
+        )
+        stall_kept = held is not None
+
+    changes = {"status": "pending", "updatedAt": utcnow()}
+    if exhibitor.get("stallId") and not stall_kept:
+        changes.update({"stallNumber": "", "stallId": None, "stallRate": None})
+    await db.exhibitors.update_one({"_id": oid}, {"$set": changes})
+
+    try:
+        await send_mail(
+            to=exhibitor["email"],
+            subject=f"Your registration has been reopened — {EVENT['eventName']}",
+            html=exhibitor_reopened_email_html(exhibitor, stall_kept=stall_kept),
+        )
+    except Exception as mail_err:  # noqa: BLE001
+        print("[exhibitor] Failed to send reopen email:", mail_err)
+
+    updated = await db.exhibitors.find_one({"_id": oid})
+    msg = "Registration reopened and the exhibitor asked to review their details"
+    if exhibitor.get("stallId"):
+        msg += f" — stall {exhibitor.get('stallNumber')} " + ("reserved for them again." if stall_kept else "was no longer free, so it has been cleared; assign one when approving.")
+    return {"success": True, "message": msg, "data": serialize_doc(updated)}
 
 
 @router.get("/exhibitors/{id}/invoice")
@@ -344,8 +417,13 @@ async def _populate_holders(db: AsyncIOMotorDatabase, stalls: list[dict]) -> lis
 async def list_all_stalls(
     admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
 ):
+    await release_expired_holds(db)
     stalls = await db.stalls.find().sort("stallNumber", 1).to_list(length=None)
     stalls = await _populate_holders(db, stalls)
+    for st in stalls:
+        # A stall reserved by someone still filling in the form (no registration yet)
+        st["formHold"] = bool(st.get("status") == "held" and not st.get("heldBy") and st.get("tempHoldToken"))
+        st.pop("tempHoldToken", None)
     return {"success": True, "data": serialize_list(stalls)}
 
 
@@ -484,24 +562,40 @@ async def upload_stall_map(
                 status_code=400,
                 detail=f"Couldn't render the PDF: {conv_err}. Try exporting the layout as a PNG/JPG and uploading that.",
             )
-    url = write_upload_bytes(contents, "stall-maps", map.filename or "layout", force_ext=".png" if is_pdf else None)
+    filename = write_upload_bytes(contents, "stall-maps", map.filename or "layout", force_ext=".png" if is_pdf else None)
+    url = f"/uploads/stall-maps/{filename}"
 
     previous = await db.stall_maps.find_one(sort=[("createdAt", -1)])
     doc = new_stall_map_document(
-        url.rsplit("/", 1)[-1], url, source_type="pdf" if is_pdf else "image", original_filename=map.filename or "",
+        filename, url, source_type="pdf" if is_pdf else "image", original_filename=map.filename or "",
         series=parsed_series if parsed_series is not None else (previous or {}).get("series") or [],
     )
     result = await db.stall_maps.insert_one(doc)
     doc["_id"] = result.inserted_id
 
-    # Detect the stalls drawn on the layout right away so the admin can
-    # confirm the series → category mapping once and apply everything.
-    detection = await _run_detection(contents)
+    # Detect the stalls drawn on the layout in the background — reading a
+    # hundred labels takes 20–60 s depending on the server, longer than some
+    # proxies allow a single request — and hand back immediately. The
+    # dashboard polls GET /stalls/detection until it's done, then opens the
+    # one-time confirmation so the admin can apply everything.
+    await _start_detection(db, doc["_id"], contents)
     return {
         "success": True,
         "message": "PDF layout converted and uploaded" if is_pdf else "Stall map uploaded",
-        "data": {**map_payload(doc), "detection": detection},
+        "data": {**map_payload(doc), "detection": {"status": "running"}},
     }
+
+
+def _detection_view(stall_map: dict | None) -> dict:
+    """What the dashboard sees for the current map's detection job."""
+    det = (stall_map or {}).get("detection") or {}
+    if not det:
+        return {"status": "none"}
+    view = {"status": det.get("status", "none"), "applied": bool(det.get("applied")), "error": det.get("error") or ""}
+    if det.get("status") == "done":
+        view.update({k: det.get(k) for k in ("boxes", "rows", "prefixes", "ocrEngine", "imageWidth", "imageHeight")})
+        view["ok"] = True
+    return view
 
 
 async def _run_detection(image_bytes: bytes) -> dict:
@@ -509,11 +603,60 @@ async def _run_detection(image_bytes: bytes) -> dict:
         det = await asyncio.to_thread(detect_layout, image_bytes)
     except Exception as err:  # noqa: BLE001 — detection is best-effort; manual placement still works
         print("[stalls] layout detection failed:", err)
-        return {"ok": False, "error": str(err), "boxes": [], "rows": [], "prefixes": [], "ocrEngine": None}
+        return {"ok": False, "error": _friendly_detection_error(err), "boxes": [], "rows": [], "prefixes": [], "ocrEngine": None}
     for p in det["prefixes"]:
         p["suggestedPackageCode"] = suggest_package_for_prefix(p["prefix"], EVENT["stallPackages"])
     det["ok"] = True
     return det
+
+
+def _friendly_detection_error(err: Exception) -> str:
+    text = str(err)
+    if "cv2" in text or "opencv" in text.lower() or "numpy" in text.lower():
+        return (
+            "The server is missing the image libraries needed for automatic detection "
+            "(opencv-python-headless, numpy). Install the packages in backend_fastapi/requirements.txt "
+            "and redeploy, or place stalls by hand below."
+        )
+    return text or "Detection failed"
+
+
+async def _start_detection(db: AsyncIOMotorDatabase, map_id, image_bytes: bytes) -> None:
+    await db.stall_maps.update_one(
+        {"_id": map_id},
+        {"$set": {"detection": {"status": "running", "startedAt": utcnow(), "applied": False}}},
+    )
+
+    async def job():
+        det = await _run_detection(image_bytes)
+        if det.get("ok"):
+            stored = {"status": "done", "finishedAt": utcnow(), "applied": False, **{k: det[k] for k in ("boxes", "rows", "prefixes", "ocrEngine", "imageWidth", "imageHeight")}}
+        else:
+            stored = {"status": "error", "finishedAt": utcnow(), "applied": False, "error": det.get("error") or "Detection failed"}
+        try:
+            await db.stall_maps.update_one({"_id": map_id}, {"$set": {"detection": stored}})
+        except Exception as save_err:  # noqa: BLE001
+            print("[stalls] could not store detection result:", save_err)
+
+    asyncio.create_task(job())
+
+
+# Poll the background detection job for the current layout.
+@router.get("/stalls/detection")
+async def get_detection(
+    admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    current = await db.stall_maps.find_one(sort=[("createdAt", -1)])
+    if not current:
+        return {"success": True, "data": {"status": "none"}}
+    view = _detection_view(current)
+    # A job that never finished (server restarted mid-run) shouldn't spin forever.
+    started = (current.get("detection") or {}).get("startedAt")
+    if started is not None and started.tzinfo is None:
+        started = started.replace(tzinfo=timezone.utc)  # Mongo hands back naive UTC
+    if view["status"] == "running" and started and (utcnow() - started).total_seconds() > 600:
+        view = {"status": "error", "error": "Detection timed out — click “Detect stalls on this layout” to try again.", "applied": False}
+    return {"success": True, "data": {**map_payload(current), "detection": view}}
 
 
 # Re-run stall detection on the current layout (for maps uploaded before
@@ -525,15 +668,41 @@ async def detect_current_layout(
     current = await db.stall_maps.find_one(sort=[("createdAt", -1)])
     if not current:
         raise HTTPException(status_code=404, detail="Upload a layout first")
-    storage_path = (current.get("url") or "").split("/api/files/", 1)[-1]
-    if not storage_path:
+    filename = current.get("filename") or (current.get("url") or "").rsplit("/", 1)[-1]
+    if not filename:
         raise HTTPException(status_code=404, detail="The layout file is missing — upload it again")
     try:
-        image_bytes, _ = await asyncio.to_thread(get_object, storage_path)
+        image_bytes, _ = await asyncio.to_thread(get_object, f"roar-expo/stall-maps/{filename}")
     except Exception:  # noqa: BLE001
         raise HTTPException(status_code=404, detail="The layout file is missing — upload it again")
-    detection = await _run_detection(image_bytes)
-    return {"success": True, "data": {**map_payload(current), "detection": detection}}
+    await _start_detection(db, current["_id"], image_bytes)
+    return {"success": True, "data": {**map_payload(current), "detection": {"status": "running"}}}
+
+
+# One-click: publish the FINAL venue drawing bundled with the app
+# (seed/assets/final-layout.png) together with every stall on it — the same
+# thing `python -m seed.final_layout_seed` does, for hosts where the admin
+# can't open a shell.
+@router.post("/stalls/apply-bundled-layout")
+async def apply_bundled_layout(
+    payload: dict | None = Body(None),
+    admin: AdminPayload = Depends(require_resource("stall-inventory")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    from seed.final_layout import apply_final_layout
+    keep_old = bool((payload or {}).get("keepOld"))
+    try:
+        result = await apply_final_layout(db, replace_unplaced=not keep_old)
+    except FileNotFoundError as err:
+        raise HTTPException(status_code=500, detail=str(err))
+    return {
+        "success": True,
+        "message": (
+            f"Final layout published — {len(result['created'])} stall(s) created, {len(result['updated'])} refreshed"
+            + (f", {len(result['removed'])} old sample stall(s) removed" if result["removed"] else "")
+            + f". {result['total']} stalls are now on the map."
+        ),
+        "data": result,
+    }
 
 
 # Apply a confirmed layout: saves the series → category mapping and creates
@@ -585,7 +754,10 @@ async def apply_layout(
             await db.stalls.insert_one(doc)
             created.append(number)
 
-    await db.stall_maps.update_one({"_id": current["_id"]}, {"$set": {"series": parsed_series or [], "updatedAt": utcnow()}})
+    await db.stall_maps.update_one(
+        {"_id": current["_id"]},
+        {"$set": {"series": parsed_series or [], "detection.applied": True, "updatedAt": utcnow()}},
+    )
     return {
         "success": True,
         "message": f"Layout applied — {len(created)} stall(s) created, {len(updated)} updated with their positions",
@@ -696,6 +868,18 @@ EDITABLE_VISITOR_FIELDS = [
 ]
 
 
+# One visitor registration in full — the admin record page.
+@router.get("/visitors/{id}")
+async def get_visitor(
+    id: str, admin: AdminPayload = Depends(require_resource("visitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    visitor = await db.visitors.find_one({"_id": oid}) if oid else None
+    if not visitor:
+        raise HTTPException(status_code=404, detail="Visitor not found")
+    return {"success": True, "data": serialize_doc(visitor)}
+
+
 @router.patch("/visitors/{id}")
 async def edit_visitor(
     id: str, payload: dict = Body(...),
@@ -804,6 +988,18 @@ async def export_enquiries_csv(
         content=_to_csv(items, ENQUIRY_CSV_COLUMNS), media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=enquiries.csv"},
     )
+
+
+# One enquiry in full — the admin record page.
+@router.get("/enquiries/{id}")
+async def get_enquiry(
+    id: str, admin: AdminPayload = Depends(require_resource("enquiries")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    enquiry = await db.enquiries.find_one({"_id": oid}) if oid else None
+    if not enquiry:
+        raise HTTPException(status_code=404, detail="Enquiry not found")
+    return {"success": True, "data": serialize_doc(enquiry)}
 
 
 @router.patch("/enquiries/{id}")
