@@ -518,6 +518,7 @@ p {
 .hero-logo {
   width: min(92%, 640px);
   height: auto;
+  margin: 0 auto;
   filter: drop-shadow(0 14px 30px rgba(12, 26, 51, 0.18));
 }
 
