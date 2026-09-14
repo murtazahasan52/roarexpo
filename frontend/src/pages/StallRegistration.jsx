@@ -262,6 +262,18 @@ export default function StallRegistration() {
       return;
     }
 
+    // Stall selection is mandatory for any category that uses the map picker.
+    if (form.stallPackage && selectedPackage?.hasStallPicker && !form.stallNumber) {
+      setError("Please select a stall from the venue map before submitting.");
+      setErrorPopup({
+        title: "Stall selection required",
+        items: [{ field: "stallPackage", message: "Please pick an available stall from the venue map to complete your registration." }],
+      });
+      const el = document.querySelector('[data-field="stallPackage"]');
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await api.registerExhibitor({

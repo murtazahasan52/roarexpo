@@ -113,6 +113,9 @@ async def register_exhibitor(
             f"Please contact us on WhatsApp {contact.get('whatsapp', '')} or email {contact.get('email', '')}."
         )})
 
+    if pkg_def and pkg_def.get("hasStallPicker") and not stallNumber.strip():
+        return JSONResponse(status_code=400, content={"success": False, "message": "Please select a stall from the venue map before submitting.", "errors": {"stallNumber": "Stall selection is required."}})
+
     try:
         # If the exhibitor picked a specific stall, verify it's still
         # available and hold it for them before we create the registration.
