@@ -1332,13 +1332,20 @@ p {
 /* ---------- Rate card (stall category selector table) ---------- */
 .rate-card-wrap {
   margin-bottom: 6px;
+  overflow-x: visible;
 }
 
-/* Only 4 short columns — this table doesn't need the generic 720px table
-   floor, and a smaller one lets it fit most phones without horizontal
-   scrolling (it still scrolls inside .table-wrap on the narrowest screens). */
+/* On normal screens the whole rate card fits in one go — no horizontal
+   scroll. It shrinks to the form width and cells wrap instead of forcing an
+   overflow. Horizontal scrolling is re-enabled only on small screens below. */
 .rate-card-table {
-  min-width: 460px;
+  min-width: 0;
+  width: 100%;
+}
+
+.rate-card-table th,
+.rate-card-table td {
+  white-space: normal;
 }
 
 .rate-card-table tbody tr {
@@ -1365,12 +1372,16 @@ p {
   vertical-align: middle;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+  .rate-card-wrap {
+    overflow-x: auto;
+  }
   .rate-card-table {
-    min-width: 400px;
+    min-width: 460px;
   }
   .rate-card-table th,
   .rate-card-table td {
+    white-space: nowrap;
     padding: 10px 8px;
     font-size: 12.5px;
   }
