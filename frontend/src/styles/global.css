@@ -2841,3 +2841,45 @@ a.btn {
   text-align: left;
   color: #a32626;
 }
+
+/* ---------- Admin-only stall (e.g. Ruby) booking-contact notice ---------- */
+.admin-only-notice {
+  border: 1px solid var(--border-soft);
+  border-left: 4px solid var(--accent, #d4a24e);
+  background: #fbf7ef;
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+}
+.admin-only-notice-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+.admin-only-notice-eligibility {
+  margin: 0 0 8px;
+  font-weight: 600;
+  color: #b45309;
+  font-size: 13.5px;
+}
+.admin-only-notice-text {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+.admin-only-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.admin-only-contact .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-only-notice-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}

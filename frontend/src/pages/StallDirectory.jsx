@@ -72,6 +72,18 @@ export default function StallDirectory() {
               <span><span className="stall-legend-dot booked" style={{ display: "inline-block", marginRight: 6 }} /><strong>{counts.booked}</strong> booked</span>
             </div>
 
+            {packages.filter((p) => p.adminOnly && p.eligibility).map((p) => (
+              <div key={p.code} className="admin-only-notice" style={{ marginBottom: 14 }} data-testid={`stall-eligibility-${p.code}`}>
+                <span className="admin-only-notice-eligibility" style={{ display: "block", marginBottom: 4 }}>
+                  {p.label}: {p.eligibility}
+                </span>
+                <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                  Booked via the organizing team — WhatsApp {config.contact?.whatsapp}
+                  {config.contact?.email ? ` / ${config.contact.email}` : ""}.
+                </span>
+              </div>
+            ))}
+
             <div className="pill-group" style={{ marginBottom: 14 }}>
               <div className={`pill ${filter === "all" ? "selected" : ""}`} onClick={() => setFilter("all")} role="button" tabIndex={0}>
                 All categories
@@ -114,7 +126,14 @@ export default function StallDirectory() {
                 </div>
               ))}
             </ZoomableMap>
-            <StallTip stall={hovered} tip={tip} packageLabel={packageLabel} />
+            <StallTip
+              stall={hovered}
+              tip={tip}
+              packageLabel={packageLabel}
+              extra={hovered && packages.find((p) => p.code === hovered.packageCode)?.adminOnly
+                ? packages.find((p) => p.code === hovered.packageCode)?.eligibility
+                : null}
+            />
             <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 10 }}>
               Booking details update live as the organizing team confirms registrations.
             </p>

@@ -105,6 +105,14 @@ async def register_exhibitor(
     if errors:
         return JSONResponse(status_code=400, content={"success": False, "message": "Validation failed", "errors": errors})
 
+    pkg_def = next((p for p in EVENT["stallPackages"] if p["code"] == stallPackage.strip()), None)
+    if pkg_def and pkg_def.get("adminOnly"):
+        contact = EVENT.get("contact", {})
+        return JSONResponse(status_code=403, content={"success": False, "message": (
+            f"{pkg_def['label']} bookings are handled by the organizing team and can't be booked online. "
+            f"Please contact us on WhatsApp {contact.get('whatsapp', '')} or email {contact.get('email', '')}."
+        )})
+
     try:
         # If the exhibitor picked a specific stall, verify it's still
         # available and hold it for them before we create the registration.

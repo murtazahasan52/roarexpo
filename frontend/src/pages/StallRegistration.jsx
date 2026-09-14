@@ -243,6 +243,14 @@ export default function StallRegistration() {
     e.preventDefault();
     setError("");
 
+    if (isAdminOnly) {
+      setErrorPopup({
+        title: `${selectedPackage.label} — booking on request`,
+        items: [{ field: "stallPackage", message: `${selectedPackage.eligibility ? selectedPackage.eligibility + ". " : ""}${selectedPackage.label}s can't be booked online — please contact us on WhatsApp ${contactInfo.whatsapp || ""} or email ${contactInfo.email || ""}.` }],
+      });
+      return;
+    }
+
     const errs = validate();
     if (Object.keys(errs).length) {
       showFieldErrors(errs);
@@ -394,6 +402,8 @@ export default function StallRegistration() {
   }
   const ownerOf = (stallNumber) => allStalls.find((s) => s.stallNumber === stallNumber)?.owner || null;
   const selectedPackage = (config.stallPackages || []).find((p) => p.code === form.stallPackage);
+  const isAdminOnly = Boolean(selectedPackage?.adminOnly);
+  const contactInfo = config.contact || {};
   const selectedStall = categoryStalls.find((s) => s.stallNumber === form.stallNumber);
   const placeableStalls = categoryStalls.filter((s) => s.mapX != null && s.mapY != null);
   const otherCategoryStalls = allStalls.filter((s) => s.packageCode !== form.stallPackage);
@@ -618,7 +628,11 @@ export default function StallRegistration() {
                         className={form.stallPackage === p.code ? "selected" : ""}
                         onClick={() => update("stallPackage", p.code)}
                       >
-                        <td>{p.icon ? `${p.icon} ` : ""}{p.label}</td>
+                        <td>{p.icon ? `${p.icon} ` : ""}{p.label}
+                          {p.eligibility && (
+                            <div style={{ fontSize: 11.5, color: "var(--text-muted)", fontWeight: 400, marginTop: 2 }}>{p.eligibility}</div>
+                          )}
+                        </td>
                         <td>{p.rate != null ? formatRate(p.rate) : p.sizeLabel}</td>
                         <td>{p.size || p.sizeLabel || "—"}</td>
                         <td>{p.stallCount || "—"}</td>
@@ -641,7 +655,45 @@ export default function StallRegistration() {
               )}
             </div>
 
-            {stallMapUrl && (
+            {isAdminOnly && (
+              <div className="field" data-field="ruby-booking-contact">
+                <div className="admin-only-notice" data-testid="admin-only-booking-notice">
+                  <h4 className="admin-only-notice-title">
+                    <Icon name="flower" size={16} /> {selectedPackage.label} — Booking on Request
+                  </h4>
+                  {selectedPackage.eligibility && (
+                    <p className="admin-only-notice-eligibility">{selectedPackage.eligibility}</p>
+                  )}
+                  <p className="admin-only-notice-text">
+                    {selectedPackage.label}s can’t be booked online. To reserve one, please reach out to the
+                    organizing team and we’ll assist you.
+                  </p>
+                  <div className="admin-only-contact">
+                    {contactInfo.whatsapp && (
+                      <a
+                        className="btn btn-primary"
+                        href={`https://wa.me/${(contactInfo.whatsapp || "").replace(/[^\d]/g, "")}?text=${encodeURIComponent(`Hi, I'd like to enquire about booking a ${selectedPackage.label}.`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        data-testid="ruby-whatsapp-link"
+                      >
+                        <Icon name="phone" size={15} /> WhatsApp {contactInfo.whatsapp}
+                      </a>
+                    )}
+                    {contactInfo.email && (
+                      <a className="btn btn-outline" href={`mailto:${contactInfo.email}`} data-testid="ruby-email-link">
+                        <Icon name="mail" size={15} /> {contactInfo.email}
+                      </a>
+                    )}
+                  </div>
+                  {contactInfo.whatsappNote && (
+                    <p className="admin-only-notice-note">{contactInfo.whatsappNote}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!isAdminOnly && stallMapUrl && (
               <div className="field">
                 <label>Venue Stall Map {stallsLoading && "(loading stalls…)"}</label>
                 {form.stallPackage && selectedPackage?.hasStallPicker ? (
@@ -781,14 +833,14 @@ export default function StallRegistration() {
               </div>
             )}
 
-            {!stallMapUrl && form.stallPackage && selectedPackage?.hasStallPicker && (
+            {!isAdminOnly && !stallMapUrl && form.stallPackage && selectedPackage?.hasStallPicker && (
               <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" }}>
                 The venue map hasn't been uploaded yet — register anyway and our team will assign your stall
                 and confirm the rate directly.
               </p>
             )}
 
-            {form.stallPackage && selectedPackage && !selectedPackage.hasStallPicker && (
+            {!isAdminOnly && form.stallPackage && selectedPackage && !selectedPackage.hasStallPicker && (
               <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" }}>
                 {selectedPackage.label} space is allocated directly by our team rather than picked online —
                 submit your registration and we'll reach out to confirm the size, position and pricing.
@@ -860,9 +912,15 @@ export default function StallRegistration() {
               {fieldError("agreedToTerms")}
             </div>
 
-            <button className="btn btn-primary btn-block" type="submit" disabled={submitting}>
-              {submitting ? "Submitting…" : "Submit Registration"}
-            </button>
+            {isAdminOnly ? (
+              <p className="rate-card-total" style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 13 }} data-testid="admin-only-submit-blocked">
+                Online submission is disabled for {selectedPackage.label}. Please use the contact options above to book.
+              </p>
+            ) : (
+              <button className="btn btn-primary btn-block" type="submit" disabled={submitting}>
+                {submitting ? "Submitting…" : "Submit Registration"}
+              </button>
+            )}
           </form>
 
           <aside className="card registration-summary">
@@ -900,6 +958,8 @@ export default function StallRegistration() {
               <span className={`summary-row-value ${selectedStall ? "" : "muted"}`}>
                 {selectedStall
                   ? `${selectedStall.stallNumber} · ${formatRate(selectedStall.rate)}`
+                  : isAdminOnly
+                  ? "Booking on request"
                   : selectedPackage && !selectedPackage.hasStallPicker
                   ? "Allocated by organizers"
                   : "Auto-assigned later"}
