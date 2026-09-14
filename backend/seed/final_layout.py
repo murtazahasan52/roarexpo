@@ -108,6 +108,18 @@ async def apply_final_layout(db: AsyncIOMotorDatabase, *, replace_unplaced: bool
             await db.stalls.insert_one(stall)
             created.append(number)
 
+    # 2b. Retire stalls explicitly superseded by this layout (e.g. whole
+    # L15–L27 replaced by the split L15A/L15B halves). Only remove them when
+    # still available so a booked stall is never dropped from under someone.
+    retired = []
+    for old_number in layout.get("retiredStalls", []):
+        num = str(old_number).strip().upper()
+        if num in wanted:
+            continue
+        deleted = await db.stalls.delete_one({"stallNumber": num, "status": "available"})
+        if deleted.deleted_count:
+            retired.append(num)
+
     # 3. Retire sample stalls that are not on this drawing (only if untouched).
     removed, kept = [], []
     async for old in db.stalls.find({"stallNumber": {"$nin": sorted(wanted)}}):
@@ -118,6 +130,6 @@ async def apply_final_layout(db: AsyncIOMotorDatabase, *, replace_unplaced: bool
             kept.append(old["stallNumber"])
 
     return {
-        "mapUrl": url, "created": created, "updated": updated, "removed": removed, "keptOffMap": kept,
+        "mapUrl": url, "created": created, "updated": updated, "removed": removed + retired, "keptOffMap": kept,
         "notes": layout.get("notes", []), "total": len(wanted),
     }

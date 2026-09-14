@@ -27,12 +27,13 @@ from utils.storage import get_object
 from models.admin import PERMISSIONS, AdminCreateRequest, AdminLoginRequest
 from models.common import serialize_doc, serialize_list, to_object_id, utcnow
 from models.enquiry import ENQUIRY_CSV_COLUMNS, ENQUIRY_STATUS_VALUES
-from models.exhibitor import EDITABLE_EXHIBITOR_FIELDS, EXHIBITOR_CSV_COLUMNS
+from models.exhibitor import EDITABLE_EXHIBITOR_FIELDS, EXHIBITOR_CSV_COLUMNS, new_exhibitor_document
 from models.stall import STALL_STATUS_VALUES, new_stall_document
 from models.stall_map import map_payload, new_stall_map_document, parse_series
 from models.visitor import VISITOR_CSV_COLUMNS
-from utils.email_templates import exhibitor_approved_email_html, exhibitor_rejected_email_html, exhibitor_reopened_email_html
+from utils.email_templates import exhibitor_approved_email_html, exhibitor_rejected_email_html, exhibitor_reopened_email_html, exhibitor_email_html
 from utils.hashing import hash_password, verify_password
+from utils.generate_code import generate_registration_code
 from utils.invoice import build_exhibitor_invoice_pdf
 from utils.pdf_to_image import pdf_first_page_to_png
 from utils.layout_detect import detect_layout, suggest_package_for_prefix
@@ -227,6 +228,88 @@ async def edit_exhibitor(
 
     updated = await db.exhibitors.find_one({"_id": oid})
     return {"success": True, "message": "Exhibitor updated", "data": serialize_doc(updated)}
+
+
+@router.post("/exhibitors/book")
+async def admin_book_stall(
+    payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Admin-side stall booking: books ANY stall (including admin-only Ruby)
+    directly, as a confirmed exhibitor, with a custom amount. Same fields as
+    the public exhibitor form; auto-confirmed and a confirmation email is sent."""
+    stall_number = str(payload.get("stallNumber") or "").strip().upper()
+    if not stall_number:
+        raise HTTPException(status_code=400, detail="Please pick a stall to book.")
+    for field, label in (("contactPerson", "Contact person"), ("email", "Email"), ("phone", "Phone"), ("companyName", "Company name")):
+        if not str(payload.get(field) or "").strip():
+            raise HTTPException(status_code=400, detail=f"{label} is required.")
+
+    await release_expired_holds(db)
+    stall = await db.stalls.find_one({"stallNumber": stall_number})
+    if not stall:
+        raise HTTPException(status_code=404, detail="That stall could not be found.")
+    if stall["status"] != "available":
+        raise HTTPException(status_code=409, detail="That stall is not available — it may already be booked or reserved.")
+
+    raw_amount = payload.get("amount")
+    try:
+        amount = int(round(float(raw_amount))) if raw_amount not in (None, "") else (stall.get("rate") or 0)
+    except (TypeError, ValueError):
+        amount = stall.get("rate") or 0
+
+    registration_code = generate_registration_code("STL")
+    doc = new_exhibitor_document({
+        "registrationCode": registration_code,
+        "itsNumber": payload.get("itsNumber", ""),
+        "contactPerson": payload.get("contactPerson", ""),
+        "designation": payload.get("designation", ""),
+        "email": payload.get("email", ""),
+        "phone": payload.get("phone", ""),
+        "whatsapp": payload.get("whatsapp", ""),
+        "companyName": payload.get("companyName", ""),
+        "businessAddress": payload.get("businessAddress", ""),
+        "city": payload.get("city", ""),
+        "state": payload.get("state", ""),
+        "pincode": payload.get("pincode", ""),
+        "gstNumber": payload.get("gstNumber", ""),
+        "category": payload.get("category", ""),
+        "productsServices": payload.get("productsServices", ""),
+        "message": payload.get("message", ""),
+        "stallPackage": stall.get("packageCode", ""),
+        "numberOfStalls": payload.get("numberOfStalls") or 1,
+        "stallNumber": stall_number,
+        "stallId": stall["_id"],
+        "stallRate": amount,
+        "fasciaName": payload.get("fasciaName", ""),
+    })
+    doc["status"] = "confirmed"
+
+    result = await db.exhibitors.insert_one(doc)
+    doc["_id"] = result.inserted_id
+
+    claimed = await db.stalls.find_one_and_update(
+        {"_id": stall["_id"], "status": "available"},
+        {"$set": {"status": "booked", "bookedBy": doc["_id"], "heldBy": None, "tempHoldToken": None, "tempHoldExpiresAt": None}},
+        return_document=True,
+    )
+    if not claimed:
+        await db.exhibitors.delete_one({"_id": doc["_id"]})
+        raise HTTPException(status_code=409, detail="That stall was just taken. Please pick another.")
+
+    try:
+        await send_mail(
+            to=doc["email"],
+            subject=f"Stall Confirmed — {EVENT['eventName']} ({registration_code})",
+            html=exhibitor_approved_email_html(doc),
+        )
+        await db.exhibitors.update_one({"_id": doc["_id"]}, {"$set": {"emailSent": True}})
+    except Exception as mail_err:  # noqa: BLE001
+        print("[admin] Failed to send booking confirmation email:", mail_err)
+        await db.exhibitors.update_one({"_id": doc["_id"]}, {"$set": {"emailError": str(mail_err)}})
+
+    updated = await db.exhibitors.find_one({"_id": doc["_id"]})
+    return {"success": True, "message": f"Stall {stall_number} booked for {doc['companyName']}.", "data": serialize_doc(updated)}
 
 
 @router.delete("/exhibitors/{id}")

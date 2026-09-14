@@ -4,6 +4,7 @@ import { api } from "../api";
 import { useAdminAuth } from "../hooks/useAdminAuth";
 import AdminsPanel from "../components/AdminsPanel";
 import StallsPanel from "../components/StallsPanel";
+import StallBookingPanel from "../components/StallBookingPanel";
 import ScanCheckInPanel from "../components/ScanCheckInPanel";
 import EntranceQRPanel from "../components/EntranceQRPanel";
 import EnquiriesPanel from "../components/EnquiriesPanel";
@@ -47,6 +48,7 @@ function StatCard({ label, value, sub }) {
 
 const TAB_LABELS = {
   exhibitors: "Exhibitors",
+  book: "Book a Stall",
   stalls: "Stalls & Map",
   visitors: "Visitors",
   scan: "Scan & Check In",
@@ -66,6 +68,7 @@ function hasAny(permissions, ...names) {
 function tabsForPermissions(permissions) {
   const tabs = [];
   if (hasAny(permissions, "exhibitors", "invoicing")) tabs.push("exhibitors");
+  if (hasAny(permissions, "exhibitors")) tabs.push("book");
   if (hasAny(permissions, "stall-inventory")) tabs.push("stalls");
   if (hasAny(permissions, "visitors")) tabs.push("visitors");
   if (hasAny(permissions, "visitors", "scanning")) tabs.push("scan");
@@ -157,7 +160,7 @@ export default function AdminDashboard() {
   }, [token, logout]);
 
   const loadRows = useCallback(async () => {
-    if (!token || tab === "admins" || tab === "stalls" || tab === "scan" || tab === "entrance-qr" || tab === "enquiries") return;
+    if (!token || tab === "admins" || tab === "book" || tab === "stalls" || tab === "scan" || tab === "entrance-qr" || tab === "enquiries") return;
     setLoading(true);
     try {
       const qs = `?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`;
@@ -344,6 +347,8 @@ export default function AdminDashboard() {
 
         {tab === "admins" ? (
           <AdminsPanel token={token} />
+        ) : tab === "book" ? (
+          <StallBookingPanel token={token} onChange={loadStats} />
         ) : tab === "stalls" ? (
           <StallsPanel token={token} />
         ) : tab === "scan" ? (

@@ -124,6 +124,7 @@ export const api = {
   adminGetVisitor: (token, id) => request(`/admin/visitors/${id}`, { token }),
   adminGetEnquiry: (token, id) => request(`/admin/enquiries/${id}`, { token }),
   adminEditExhibitor: (token, id, payload) => request(`/admin/exhibitors/${id}`, { method: "PATCH", body: payload, token }),
+  adminBookStall: (token, payload) => request("/admin/exhibitors/book", { method: "POST", body: payload, token }),
   adminDeleteExhibitor: (token, id) => request(`/admin/exhibitors/${id}`, { method: "DELETE", token }),
   adminEditVisitor: (token, id, payload) => request(`/admin/visitors/${id}`, { method: "PATCH", body: payload, token }),
   adminDeleteVisitor: (token, id) => request(`/admin/visitors/${id}`, { method: "DELETE", token }),
