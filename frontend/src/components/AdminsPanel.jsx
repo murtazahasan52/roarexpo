@@ -41,6 +41,7 @@ export default function AdminsPanel({ token }) {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [showPw, setShowPw] = useState(false);
 
   const loadAdmins = useCallback(async () => {
     setLoading(true);
@@ -124,27 +125,33 @@ export default function AdminsPanel({ token }) {
       <div className="card form-card" style={{ marginBottom: 24 }}>
         <h3 style={{ marginBottom: 18 }}>Add an Admin</h3>
         {formError && <div className="alert alert-error">{formError}</div>}
-        <form onSubmit={handleCreate}>
+        <form onSubmit={handleCreate} autoComplete="off">
           <div className="form-row">
             <div className="field">
               <label>Name</label>
-              <input required value={form.name} onChange={(e) => update("name", e.target.value)} />
+              <input required value={form.name} onChange={(e) => update("name", e.target.value)} autoComplete="off" />
             </div>
             <div className="field">
               <label>Email</label>
-              <input required type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
+              <input required type="email" name="new-admin-email" value={form.email} onChange={(e) => update("email", e.target.value)} autoComplete="off" />
             </div>
           </div>
           <div className="field">
             <label>Password</label>
             <input
               required
-              type="password"
+              type={showPw ? "text" : "password"}
+              name="new-admin-password"
               minLength={8}
               placeholder="At least 8 characters"
               value={form.password}
               onChange={(e) => update("password", e.target.value)}
+              autoComplete="new-password"
             />
+            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: 12.5, color: "var(--text-muted)", fontWeight: 400 }}>
+              <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} data-testid="show-admin-password" />
+              Show password (verify before sharing with the new admin)
+            </label>
           </div>
 
           <div className="field">
