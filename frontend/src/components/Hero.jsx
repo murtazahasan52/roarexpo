@@ -3,6 +3,8 @@ import Icon from "./Icon";
 import CountdownTimer from "./CountdownTimer";
 import { useEventConfig } from "../hooks/useEventConfig";
 import roarWordmark from "../assets/roar-wordmark.png";
+import economicAffairsLogo from "../assets/economic-affairs-logo.png";
+import dbohraLogo from "../assets/dbohra-logo.png";
 
 export default function Hero() {
   const { config } = useEventConfig();
@@ -19,6 +21,21 @@ export default function Hero() {
         </div>
         <div className="hero-managed-by fade-up-3">
           Managed by Dawoodi Bohra Department of Economic Affairs {config.eventCity}
+        </div>
+        <div className="organizer-logos organizer-logos-hero fade-up-3" data-testid="hero-organizer-logos">
+          <div className="organizer-logo-item">
+            <span className="organizer-logo-label">Managed By</span>
+            <img
+              src={economicAffairsLogo}
+              alt="Dawoodi Bohra Department of Economic Affairs — Nagpur Jamiyat"
+              className="organizer-logo-img organizer-logo-img-tall"
+            />
+          </div>
+          <div className="organizer-logo-divider" aria-hidden="true" />
+          <div className="organizer-logo-item">
+            <span className="organizer-logo-label">In Association With</span>
+            <img src={dbohraLogo} alt="dbohra — A Global Business Network" className="organizer-logo-img organizer-logo-img-wide" />
+          </div>
         </div>
         <p className="hero-lead fade-up-4">
           A 3-day business expo bringing together {config.totalStalls} exhibitors across{" "}

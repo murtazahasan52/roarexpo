@@ -9,8 +9,6 @@ import { useEventConfig } from "../hooks/useEventConfig";
 import roseImg from "../assets/roar-rose.png";
 import orangeImg from "../assets/roar-orange.png";
 import tigerImg from "../assets/roar-tiger.png";
-import economicAffairsLogo from "../assets/economic-affairs-logo.png";
-import dbohraLogo from "../assets/dbohra-logo.png";
 
 const exhibitBenefits = [
   { icon: "users", title: "Meet Qualified Buyers", desc: "Connect face-to-face with serious buyers, distributors and decision-makers across 16+ industries." },
@@ -73,22 +71,6 @@ export default function Home() {
 
   return (
     <>
-      <div className="organizer-logos organizer-logos-top" data-testid="home-organizer-logos-top">
-        <div className="organizer-logo-item">
-          <span className="organizer-logo-label">Managed By</span>
-          <img
-            src={economicAffairsLogo}
-            alt="Dawoodi Bohra Department of Economic Affairs — Nagpur Jamiyat"
-            className="organizer-logo-img organizer-logo-img-tall"
-          />
-        </div>
-        <div className="organizer-logo-divider" aria-hidden="true" />
-        <div className="organizer-logo-item">
-          <span className="organizer-logo-label">In Association With</span>
-          <img src={dbohraLogo} alt="dbohra — A Global Business Network" className="organizer-logo-img organizer-logo-img-wide" />
-        </div>
-      </div>
-
       <Hero />
 
       <section className="section stats-section">

@@ -1853,12 +1853,11 @@ p {
   }
 }
 
-.organizer-logos-top {
-  margin-top: 0;
-  padding: 20px 16px;
+.organizer-logos-hero {
+  margin-top: 20px;
+  padding-top: 0;
   border-top: none;
-  border-bottom: 1px solid var(--border-soft, #ece4d6);
-  background: #fff;
+  gap: 32px;
 }
 
 /* ---------- Admin (kept as a distinct, dark-accented internal tool) ---------- */
