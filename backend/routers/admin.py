@@ -22,7 +22,7 @@ from middleware.auth import (
     AdminPayload, require_admin, require_any_resource, require_full_access, require_resource, sign_token,
 )
 from middleware.rate_limit import rate_limit
-from middleware.upload import MAP_TYPES, STALL_MAP_MAX_BYTES, read_upload, write_upload_bytes
+from middleware.upload import MAP_TYPES, STALL_MAP_MAX_BYTES, read_upload, write_upload_bytes, save_upload, EXHIBITOR_FILE_MAX_BYTES
 from utils.storage import get_object
 from models.admin import PERMISSIONS, AdminCreateRequest, AdminLoginRequest
 from models.common import serialize_doc, serialize_list, to_object_id, utcnow
@@ -232,18 +232,44 @@ async def edit_exhibitor(
 
 @router.post("/exhibitors/book")
 async def admin_book_stall(
-    payload: dict = Body(...),
+    stallNumber: str = Form(...),
+    amount: str = Form(""),
+    itsNumber: str = Form(""),
+    contactPerson: str = Form(...),
+    designation: str = Form(""),
+    email: str = Form(...),
+    phone: str = Form(...),
+    landline: str = Form(""),
+    whatsapp: str = Form(""),
+    companyName: str = Form(...),
+    businessAddress: str = Form(""),
+    businessEmail: str = Form(""),
+    city: str = Form(""),
+    state: str = Form(""),
+    pincode: str = Form(""),
+    website: str = Form(""),
+    gstNumber: str = Form(""),
+    linkedin: str = Form(""),
+    instagram: str = Form(""),
+    facebook: str = Form(""),
+    category: str = Form(""),
+    productsServices: str = Form(""),
+    message: str = Form(""),
+    numberOfStalls: int = Form(1),
+    fasciaName: str = Form(""),
+    logo: UploadFile | None = File(None),
+    productImages: list[UploadFile] = File(default=[]),
     admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """Admin-side stall booking: books ANY stall (including admin-only Ruby)
-    directly, as a confirmed exhibitor, with a custom amount. Same fields as
-    the public exhibitor form; auto-confirmed and a confirmation email is sent."""
-    stall_number = str(payload.get("stallNumber") or "").strip().upper()
+    """Admin-side stall booking: same fields as the public exhibitor form, but
+    the stall is chosen beforehand (on the map). Books ANY stall — including
+    admin-only Ruby — as a confirmed exhibitor with a custom amount, and sends
+    the confirmation email."""
+    stall_number = stallNumber.strip().upper()
     if not stall_number:
         raise HTTPException(status_code=400, detail="Please pick a stall to book.")
-    for field, label in (("contactPerson", "Contact person"), ("email", "Email"), ("phone", "Phone"), ("companyName", "Company name")):
-        if not str(payload.get(field) or "").strip():
-            raise HTTPException(status_code=400, detail=f"{label} is required.")
+    if not contactPerson.strip() or not email.strip() or not phone.strip() or not companyName.strip():
+        raise HTTPException(status_code=400, detail="Contact name, email, mobile and company name are required.")
 
     await release_expired_holds(db)
     stall = await db.stalls.find_one({"stallNumber": stall_number})
@@ -252,36 +278,35 @@ async def admin_book_stall(
     if stall["status"] != "available":
         raise HTTPException(status_code=409, detail="That stall is not available — it may already be booked or reserved.")
 
-    raw_amount = payload.get("amount")
     try:
-        amount = int(round(float(raw_amount))) if raw_amount not in (None, "") else (stall.get("rate") or 0)
+        amt = int(round(float(amount))) if str(amount).strip() else (stall.get("rate") or 0)
     except (TypeError, ValueError):
-        amount = stall.get("rate") or 0
+        amt = stall.get("rate") or 0
+
+    logo_url = ""
+    if logo is not None:
+        filename = await save_upload(logo, "logos", EXHIBITOR_FILE_MAX_BYTES)
+        logo_url = f"/uploads/logos/{filename}"
+    product_image_urls = []
+    for img in productImages or []:
+        if img is None:
+            continue
+        filename = await save_upload(img, "product-images", EXHIBITOR_FILE_MAX_BYTES)
+        product_image_urls.append(f"/uploads/product-images/{filename}")
 
     registration_code = generate_registration_code("STL")
     doc = new_exhibitor_document({
         "registrationCode": registration_code,
-        "itsNumber": payload.get("itsNumber", ""),
-        "contactPerson": payload.get("contactPerson", ""),
-        "designation": payload.get("designation", ""),
-        "email": payload.get("email", ""),
-        "phone": payload.get("phone", ""),
-        "whatsapp": payload.get("whatsapp", ""),
-        "companyName": payload.get("companyName", ""),
-        "businessAddress": payload.get("businessAddress", ""),
-        "city": payload.get("city", ""),
-        "state": payload.get("state", ""),
-        "pincode": payload.get("pincode", ""),
-        "gstNumber": payload.get("gstNumber", ""),
-        "category": payload.get("category", ""),
-        "productsServices": payload.get("productsServices", ""),
-        "message": payload.get("message", ""),
-        "stallPackage": stall.get("packageCode", ""),
-        "numberOfStalls": payload.get("numberOfStalls") or 1,
-        "stallNumber": stall_number,
-        "stallId": stall["_id"],
-        "stallRate": amount,
-        "fasciaName": payload.get("fasciaName", ""),
+        "itsNumber": itsNumber, "contactPerson": contactPerson, "designation": designation,
+        "email": email, "phone": phone, "landline": landline, "whatsapp": whatsapp,
+        "companyName": companyName, "businessAddress": businessAddress, "businessEmail": businessEmail,
+        "city": city, "state": state, "pincode": pincode, "website": website, "gstNumber": gstNumber,
+        "linkedin": linkedin, "instagram": instagram, "facebook": facebook,
+        "logoUrl": logo_url, "productImages": product_image_urls,
+        "category": category, "productsServices": productsServices, "message": message,
+        "stallPackage": stall.get("packageCode", ""), "numberOfStalls": numberOfStalls or 1,
+        "stallNumber": stall_number, "stallId": stall["_id"], "stallRate": amt,
+        "fasciaName": fasciaName,
     })
     doc["status"] = "confirmed"
 

@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-19-rubysplit",
+  "version": "2026-09-20-rubysplit-vert",
   "layoutFile": "final-layout.png",
   "source": "Designed venue artwork v2 (12 Sep 2026: stage, walkway, garden) based on MSB COLOR LAYOUT",
   "imageWidth": 2918,
@@ -438,183 +438,183 @@
       "stallNumber": "L15A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 50.12,
-      "mapY": 62.98
+      "mapX": 50.72,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L15B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 51.32,
-      "mapY": 62.98
+      "mapX": 50.72,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L16A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 47.6,
-      "mapY": 62.98
+      "mapX": 48.2,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L16B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 48.8,
-      "mapY": 62.98
+      "mapX": 48.2,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L17A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 45.17,
-      "mapY": 62.98
+      "mapX": 45.76,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L17B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 46.35,
-      "mapY": 62.98
+      "mapX": 45.76,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L18A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 42.72,
-      "mapY": 63.04
+      "mapX": 43.32,
+      "mapY": 61.0
     },
     {
       "stallNumber": "L18B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 43.92,
-      "mapY": 63.04
+      "mapX": 43.32,
+      "mapY": 65.08
     },
     {
       "stallNumber": "L19A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 40.25,
-      "mapY": 62.98
+      "mapX": 40.85,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L19B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 41.45,
-      "mapY": 62.98
+      "mapX": 40.85,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L20A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 37.79,
-      "mapY": 62.98
+      "mapX": 38.41,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L20B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 39.03,
-      "mapY": 62.98
+      "mapX": 38.41,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L21A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 35.36,
-      "mapY": 62.98
+      "mapX": 35.96,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L21B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 36.56,
-      "mapY": 62.98
+      "mapX": 35.96,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L22A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 32.9,
-      "mapY": 62.98
+      "mapX": 33.5,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L22B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 34.1,
-      "mapY": 62.98
+      "mapX": 33.5,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L23A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 30.43,
-      "mapY": 62.98
+      "mapX": 31.04,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L23B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 31.64,
-      "mapY": 62.98
+      "mapX": 31.04,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L24A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 27.95,
-      "mapY": 62.98
+      "mapX": 28.55,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L24B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 29.16,
-      "mapY": 62.98
+      "mapX": 28.55,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L25A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 25.48,
-      "mapY": 62.98
+      "mapX": 26.09,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L25B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 26.7,
-      "mapY": 62.98
+      "mapX": 26.09,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L26A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 22.98,
-      "mapY": 62.98
+      "mapX": 23.6,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L26B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 24.22,
-      "mapY": 62.98
+      "mapX": 23.6,
+      "mapY": 64.99
     },
     {
       "stallNumber": "L27A",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 20.42,
-      "mapY": 62.98
+      "mapX": 21.05,
+      "mapY": 60.97
     },
     {
       "stallNumber": "L27B",
       "packageCode": "ruby",
       "size": "1.5m × 3m",
-      "mapX": 21.68,
-      "mapY": 62.98
+      "mapX": 21.05,
+      "mapY": 64.99
     },
     {
       "stallNumber": "Y1",
