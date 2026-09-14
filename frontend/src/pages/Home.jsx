@@ -19,7 +19,7 @@ const exhibitBenefits = [
 ];
 
 const visitBenefits = [
-  { icon: "store", title: "100+ Stalls, One Roof", desc: "Explore everything from industrial machinery to jewellery, food, healthcare and travel &mdash; all under one roof." },
+  { icon: "store", title: "150+ Stalls, One Roof", desc: "Explore everything from industrial machinery to jewellery, food, healthcare and travel &mdash; all under one roof." },
   { icon: "ticket", title: "Free Entry Invitation", desc: "Register once and receive a personal invitation card by email &mdash; just show it at the gate." },
   { icon: "users", title: "Network & Learn", desc: "Meet exhibitors, discover new products and services, and connect with Nagpur's business community." },
 ];
@@ -108,7 +108,7 @@ export default function Home() {
                 markets.
               </p>
               <p>
-                With <strong>100+ stalls</strong> and visitors from all communities, the Expo aims to create
+                With <strong>150+ stalls</strong> and visitors from all communities, the Expo aims to create
                 opportunities for new customers, suppliers, distributors, dealers, business partners and
                 collaborations. It will particularly benefit young and emerging entrepreneurs by giving them
                 market exposure and an opportunity to interact with established businesses.
@@ -198,7 +198,7 @@ export default function Home() {
         <div className="container">
           <Reveal>
             <div className="eyebrow">Why Visit</div>
-            <h2>Discover 100+ stalls under one roof</h2>
+            <h2>Discover 150+ stalls under one roof</h2>
           </Reveal>
           <BenefitGrid items={visitBenefits} />
           <div style={{ marginTop: 32, textAlign: "center" }}>

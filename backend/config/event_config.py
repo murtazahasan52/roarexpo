@@ -18,7 +18,7 @@ EVENT = {
     "venueAddress": "MSB Ground, Nagpur, Maharashtra, India",
     # Replace with an exact Google Maps link once available
     "venueMapUrl": "https://www.google.com/maps/search/?api=1&query=MSB+Ground+Nagpur",
-    "totalStalls": "100+",
+    "totalStalls": "150+",
     "organizers": [
         # Shown in the homepage "About" organizer strip (alongside the department's
         # logo). dbohra is shown as a logo partner on the homepage, not listed

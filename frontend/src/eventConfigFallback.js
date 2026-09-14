@@ -9,7 +9,7 @@ export const fallbackConfig = {
   eventEndDateISO: "2027-01-10",
   venueName: "MSB Ground, Nagpur",
   venueMapUrl: "https://www.google.com/maps/search/?api=1&query=MSB+Ground+Nagpur",
-  totalStalls: "100+",
+  totalStalls: "150+",
   organizers: [
     { name: "Dawoodi Bohra Department of Economic Affairs", tagline: "Nagpur Jamiyat" },
   ],
