@@ -124,7 +124,7 @@ export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved,
       asPage={asPage}
       onClose={onClose}
       title={`${readOnly ? "Exhibitor Details" : "Edit Exhibitor"} — ${exhibitor.registrationCode}`}
-      subtitle={`${STATUS_LABEL[exhibitor.status] || exhibitor.status} · registered ${new Date(exhibitor.createdAt).toLocaleString()}`}
+      subtitle={`${STATUS_LABEL[exhibitor.status] || exhibitor.status} · registered ${new Date(exhibitor.createdAt).toLocaleString()}${exhibitor.status === "confirmed" ? ` · approved by ${exhibitor.approvedByName || exhibitor.approvedBy?.name || "—"} · ${exhibitor.paymentStatus === "paid" ? "Paid" : "Unpaid"}` : ""}`}
       error={error}
       actions={headerActions}
     >
