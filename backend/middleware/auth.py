@@ -23,7 +23,7 @@ class AdminPayload(dict):
 
 def sign_token(admin_doc: dict) -> str:
     secret = os.environ["JWT_SECRET"]
-    expires_days = int(os.environ.get("JWT_EXPIRES_IN_DAYS", "7"))
+    expires_days = int(os.environ.get("JWT_EXPIRES_IN_DAYS", "365"))
     expires_at = datetime.now(timezone.utc) + timedelta(days=expires_days)
     payload = {
         "id": str(admin_doc["_id"]),

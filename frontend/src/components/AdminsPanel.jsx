@@ -107,6 +107,18 @@ export default function AdminsPanel({ token }) {
     }
   }
 
+  async function handleResetPassword(a) {
+    const pw = window.prompt(`Set a new password for ${a.name || a.email} (min 8 characters):`);
+    if (pw === null) return;
+    if (pw.length < 8) { alert("Password must be at least 8 characters."); return; }
+    try {
+      await api.adminResetAdminPassword(token, a._id, { newPassword: pw, confirmPassword: pw });
+      alert(`Password reset for ${a.name || a.email}. They can now log in with the new password.`);
+    } catch (err) {
+      alert(err.message || "Failed to reset password");
+    }
+  }
+
   return (
     <div>
       <div className="card form-card" style={{ marginBottom: 24 }}>
@@ -195,7 +207,15 @@ export default function AdminsPanel({ token }) {
                   <PermissionBadges permissions={a.permissions} />
                 </td>
                 <td>{new Date(a.createdAt).toLocaleDateString()}</td>
-                <td>
+                <td style={{ display: "flex", gap: 8 }}>
+                  <button
+                    className="btn btn-outline"
+                    style={{ padding: "6px 14px", fontSize: 12.5 }}
+                    onClick={() => handleResetPassword(a)}
+                    data-testid={`reset-pw-${a._id}`}
+                  >
+                    Reset Password
+                  </button>
                   <button
                     className="btn btn-outline"
                     style={{

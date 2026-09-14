@@ -191,6 +191,10 @@ export default function AdminDashboard() {
   }, [loadRows]);
 
   const [decidingId, setDecidingId] = useState(null);
+  const [pwModal, setPwModal] = useState(false);
+  const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState("");
 
   async function handleReopen(r) {
     if (!window.confirm(`Reopen ${r.companyName}'s registration? It goes back to pending, their stall is reserved again if still free, and they are emailed to review their details.`)) return;
@@ -208,15 +212,28 @@ export default function AdminDashboard() {
   }
 
   async function handleApprove(id) {
+    const paid = window.confirm(
+      "Approve this exhibitor's stall booking.\n\nHas the payment been received?\n\nClick OK = mark PAID\nClick Cancel = mark UNPAID"
+    );
     setDecidingId(id);
     try {
-      await api.adminApproveExhibitor(token, id);
+      await api.adminApproveExhibitor(token, id, paid ? "paid" : "unpaid");
       loadRows();
       loadStats();
     } catch (err) {
       alert(err.message || "Failed to approve exhibitor");
     } finally {
       setDecidingId(null);
+    }
+  }
+
+  async function handleTogglePayment(r) {
+    const next = r.paymentStatus === "paid" ? "unpaid" : "paid";
+    try {
+      await api.adminSetPayment(token, r._id, next);
+      loadRows();
+    } catch (err) {
+      alert(err.message || "Failed to update payment status");
     }
   }
 
@@ -292,18 +309,76 @@ export default function AdminDashboard() {
           <span className="brand-mark" style={{ fontSize: 20 }}>
             ROAR Admin
           </span>
-          <button
-            className="btn btn-outline-light"
-            style={{ padding: "8px 18px" }}
-            onClick={() => {
-              logout();
-              navigate("/admin/login");
-            }}
-          >
-            Log Out
-          </button>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              className="btn btn-outline-light"
+              style={{ padding: "8px 18px" }}
+              onClick={() => { setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); setPwError(""); setPwModal(true); }}
+              data-testid="change-password-btn"
+            >
+              Change Password
+            </button>
+            <button
+              className="btn btn-outline-light"
+              style={{ padding: "8px 18px" }}
+              onClick={() => {
+                logout();
+                navigate("/admin/login");
+              }}
+            >
+              Log Out
+            </button>
+          </div>
         </div>
       </div>
+
+      {pwModal && (
+        <div className="modal-overlay" onClick={() => setPwModal(false)}>
+          <div className="modal-panel" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0 }}>Change Password</h3>
+              <button className="modal-close" onClick={() => setPwModal(false)} aria-label="Close">×</button>
+            </div>
+            <form
+              className="modal-body"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setPwError("");
+                if (pwForm.newPassword !== pwForm.confirmPassword) { setPwError("New passwords do not match."); return; }
+                if (pwForm.newPassword.length < 8) { setPwError("New password must be at least 8 characters."); return; }
+                setPwSaving(true);
+                try {
+                  await api.adminChangePassword(token, pwForm);
+                  setPwModal(false);
+                  alert("Password changed successfully.");
+                } catch (err) {
+                  setPwError(err.message || "Could not change password.");
+                } finally {
+                  setPwSaving(false);
+                }
+              }}
+            >
+              {pwError && <div className="alert alert-error" style={{ marginBottom: 12 }}>{pwError}</div>}
+              <div className="field">
+                <label>Current Password</label>
+                <input type="password" value={pwForm.currentPassword} onChange={(e) => setPwForm((f) => ({ ...f, currentPassword: e.target.value }))} data-testid="pw-current" required />
+              </div>
+              <div className="field">
+                <label>New Password</label>
+                <input type="password" value={pwForm.newPassword} onChange={(e) => setPwForm((f) => ({ ...f, newPassword: e.target.value }))} data-testid="pw-new" minLength={8} required />
+              </div>
+              <div className="field">
+                <label>Confirm New Password</label>
+                <input type="password" value={pwForm.confirmPassword} onChange={(e) => setPwForm((f) => ({ ...f, confirmPassword: e.target.value }))} data-testid="pw-confirm" minLength={8} required />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setPwModal(false)} disabled={pwSaving}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={pwSaving} data-testid="pw-submit">{pwSaving ? "Saving…" : "Change Password"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="container" style={{ paddingTop: 32, paddingBottom: 60 }}>
         <div className="admin-stats">
@@ -385,6 +460,8 @@ export default function AdminDashboard() {
                       <th>Phone</th>
                       <th>Category</th>
                       <th>Status</th>
+                      <th>Payment</th>
+                      <th>Approved By</th>
                       <th>Email Sent</th>
                       <th>WhatsApp</th>
                       <th>Registered</th>
@@ -428,6 +505,22 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td>
+                          {r.status === "confirmed" ? (
+                            <button
+                              className={`badge ${r.paymentStatus === "paid" ? "badge-green" : "badge-navy"}`}
+                              style={{ cursor: canManageExhibitors ? "pointer" : "default", border: "none" }}
+                              onClick={() => canManageExhibitors && handleTogglePayment(r)}
+                              title={canManageExhibitors ? "Click to toggle paid/unpaid" : ""}
+                              data-testid={`payment-toggle-${r._id}`}
+                            >
+                              {r.paymentStatus === "paid" ? "Paid" : "Unpaid"}
+                            </button>
+                          ) : (
+                            <span style={{ color: "var(--text-muted)" }}>—</span>
+                          )}
+                        </td>
+                        <td style={{ fontSize: 12.5 }}>{r.approvedByName || r.approvedBy?.name || "—"}</td>
+                        <td>
                           <span className={`badge ${r.emailSent ? "badge-green" : "badge-gray"}`}>
                             {r.emailSent ? "Sent" : "Pending"}
                           </span>
@@ -439,77 +532,51 @@ export default function AdminDashboard() {
                         </td>
                         <td>{new Date(r.createdAt).toLocaleString()}</td>
                         <td className="row-actions-cell">
-                          <div className="row-actions">
+                          <details className="row-actions-menu">
+                            <summary className="row-actions-trigger" data-testid={`row-actions-${r._id}`} aria-label="Actions">⋯</summary>
+                            <div className="row-actions-menu-list">
                           {canManageExhibitors && r.status === "pending" && (
                             <>
-                              <button
-                                className="btn btn-primary"
-                                style={{ padding: "6px 14px", fontSize: 12.5 }}
-                                onClick={() => handleApprove(r._id)}
-                                disabled={decidingId === r._id}
-                              >
+                              <button className="row-menu-item" onClick={() => handleApprove(r._id)} disabled={decidingId === r._id}>
                                 {decidingId === r._id ? "…" : "Approve"}
                               </button>
-                              <button
-                                className="btn btn-outline"
-                                style={{
-                                  padding: "6px 14px",
-                                  fontSize: 12.5,
-                                  borderColor: "var(--rose-500)",
-                                  color: "var(--rose-500)",
-                                }}
-                                onClick={() => handleReject(r._id)}
-                                disabled={decidingId === r._id}
-                              >
+                              <button className="row-menu-item row-menu-danger" onClick={() => handleReject(r._id)} disabled={decidingId === r._id}>
                                 Reject
                               </button>
                             </>
                           )}
                           {canManageExhibitors && r.status === "cancelled" && (
-                            <button
-                              className="btn btn-primary"
-                              style={{ padding: "6px 14px", fontSize: 12.5 }}
-                              onClick={() => handleReopen(r)}
-                              disabled={decidingId === r._id}
-                            >
+                            <button className="row-menu-item" onClick={() => handleReopen(r)} disabled={decidingId === r._id}>
                               {decidingId === r._id ? "…" : "Reopen"}
                             </button>
                           )}
-                          <Link to={`/admin/exhibitors/${r._id}`} className="btn btn-outline" style={{ padding: "6px 14px", fontSize: 12.5 }}>
-                            View
-                          </Link>
+                          {canManageExhibitors && r.status === "confirmed" && (
+                            <button className="row-menu-item" onClick={() => handleTogglePayment(r)}>
+                              Mark {r.paymentStatus === "paid" ? "Unpaid" : "Paid"}
+                            </button>
+                          )}
+                          <Link to={`/admin/exhibitors/${r._id}`} className="row-menu-item">View</Link>
                           {canManageExhibitors && (
-                            <Link to={`/admin/exhibitors/${r._id}?edit=1`} className="btn btn-outline" style={{ padding: "6px 14px", fontSize: 12.5 }}>
-                              Edit
-                            </Link>
+                            <Link to={`/admin/exhibitors/${r._id}?edit=1`} className="row-menu-item">Edit</Link>
                           )}
                           {canSeeInvoice && (
-                            <button
-                              className="btn btn-outline"
-                              style={{ padding: "6px 14px", fontSize: 12.5 }}
-                              onClick={() => handleInvoice(r._id)}
-                              disabled={invoicingId === r._id}
-                            >
+                            <button className="row-menu-item" onClick={() => handleInvoice(r._id)} disabled={invoicingId === r._id}>
                               {invoicingId === r._id ? "…" : "Invoice"}
                             </button>
                           )}
                           {canManageExhibitors && (
-                            <button
-                              className="btn btn-outline btn-danger-outline"
-                              style={{ padding: "6px 14px", fontSize: 12.5 }}
-                              onClick={() => handleDeleteExhibitor(r)}
-                              disabled={deletingId === r._id}
-                            >
+                            <button className="row-menu-item row-menu-danger" onClick={() => handleDeleteExhibitor(r)} disabled={deletingId === r._id}>
                               {deletingId === r._id ? "…" : "Delete"}
                             </button>
                           )}
-                          </div>
+                            </div>
+                          </details>
                         </td>
                       </tr>
                     ))}
                     {!loading && rows.length === 0 && (
                       <tr>
-                        <td colSpan={13} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                        <td colSpan={15} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                           No exhibitor registrations yet.
                         </td>
                       </tr>

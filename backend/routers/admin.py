@@ -358,9 +358,70 @@ async def delete_exhibitor(
     return {"success": True, "message": "Exhibitor registration deleted and its stall released"}
 
 
+@router.patch("/exhibitors/{id}/payment")
+async def set_payment_status(
+    id: str, payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Toggle an exhibitor's payment status (paid/unpaid) at any time."""
+    oid = to_object_id(id)
+    exhibitor = await db.exhibitors.find_one({"_id": oid}) if oid else None
+    if not exhibitor:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+    status_val = "paid" if str(payload.get("paymentStatus", "")).lower() == "paid" else "unpaid"
+    await db.exhibitors.update_one({"_id": oid}, {"$set": {"paymentStatus": status_val, "updatedAt": utcnow()}})
+    updated = await db.exhibitors.find_one({"_id": oid})
+    return {"success": True, "message": f"Marked {status_val}", "data": serialize_doc(updated)}
+
+
+@router.post("/me/password")
+async def change_my_password(
+    payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_admin), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Logged-in admin changes their own password (verifies current password)."""
+    current = str(payload.get("currentPassword") or "")
+    new = str(payload.get("newPassword") or "")
+    confirm = str(payload.get("confirmPassword") or "")
+    if not current or not new:
+        raise HTTPException(status_code=400, detail="Current and new password are required.")
+    if new != confirm:
+        raise HTTPException(status_code=400, detail="New passwords do not match.")
+    if len(new) < 8 or len(new.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters.")
+    account = await db.admins.find_one({"_id": to_object_id(admin.get("id"))})
+    if not account or not verify_password(current, account["passwordHash"]):
+        raise HTTPException(status_code=401, detail="Current password is incorrect.")
+    if verify_password(new, account["passwordHash"]):
+        raise HTTPException(status_code=400, detail="New password must be different from the current one.")
+    await db.admins.update_one({"_id": account["_id"]}, {"$set": {"passwordHash": hash_password(new), "updatedAt": utcnow()}})
+    return {"success": True, "message": "Password changed successfully."}
+
+
+@router.post("/admins/{id}/password")
+async def reset_admin_password(
+    id: str, payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Super-admin ('all') resets another admin's password."""
+    new = str(payload.get("newPassword") or "")
+    confirm = str(payload.get("confirmPassword") or "")
+    if new != confirm:
+        raise HTTPException(status_code=400, detail="New passwords do not match.")
+    if len(new) < 8 or len(new.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters.")
+    oid = to_object_id(id)
+    target = await db.admins.find_one({"_id": oid}) if oid else None
+    if not target:
+        raise HTTPException(status_code=404, detail="Admin not found")
+    await db.admins.update_one({"_id": oid}, {"$set": {"passwordHash": hash_password(new), "updatedAt": utcnow()}})
+    return {"success": True, "message": f"Password reset for {target.get('name') or target.get('email')}."}
+
+
 @router.post("/exhibitors/{id}/approve")
 async def approve_exhibitor(
-    id: str, admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+    id: str, payload: dict = Body(default={}),
+    admin: AdminPayload = Depends(require_resource("exhibitors")), db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     oid = to_object_id(id)
     exhibitor = await db.exhibitors.find_one({"_id": oid}) if oid else None
@@ -369,7 +430,13 @@ async def approve_exhibitor(
     if exhibitor["status"] == "confirmed":
         return {"success": True, "message": "Already confirmed", "data": serialize_doc(exhibitor)}
 
-    await db.exhibitors.update_one({"_id": oid}, {"$set": {"status": "confirmed", "updatedAt": utcnow()}})
+    payment_status = "paid" if str((payload or {}).get("paymentStatus", "")).lower() == "paid" else "unpaid"
+    approved_by = {"id": admin.get("id"), "name": admin.get("name"), "email": admin.get("email")}
+    await db.exhibitors.update_one({"_id": oid}, {"$set": {
+        "status": "confirmed", "paymentStatus": payment_status,
+        "approvedBy": approved_by, "approvedByName": admin.get("name"), "approvedAt": utcnow(),
+        "updatedAt": utcnow(),
+    }})
 
     if exhibitor.get("stallId"):
         await db.stalls.update_one(

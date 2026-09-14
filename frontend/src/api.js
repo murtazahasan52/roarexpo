@@ -117,7 +117,10 @@ export const api = {
   adminCheckIn: (token, registrationCode) =>
     request("/admin/check-in", { method: "POST", body: { registrationCode }, token }),
   adminEntranceQR: (token) => request("/admin/visitors/entrance-qr", { token }),
-  adminApproveExhibitor: (token, id) => request(`/admin/exhibitors/${id}/approve`, { method: "POST", token }),
+  adminApproveExhibitor: (token, id, paymentStatus) => request(`/admin/exhibitors/${id}/approve`, { method: "POST", body: { paymentStatus }, token }),
+  adminSetPayment: (token, id, paymentStatus) => request(`/admin/exhibitors/${id}/payment`, { method: "PATCH", body: { paymentStatus }, token }),
+  adminChangePassword: (token, payload) => request("/admin/me/password", { method: "POST", body: payload, token }),
+  adminResetAdminPassword: (token, id, payload) => request(`/admin/admins/${id}/password`, { method: "POST", body: payload, token }),
   adminRejectExhibitor: (token, id) => request(`/admin/exhibitors/${id}/reject`, { method: "POST", token }),
   adminReopenExhibitor: (token, id) => request(`/admin/exhibitors/${id}/reopen`, { method: "POST", token }),
   adminGetExhibitor: (token, id) => request(`/admin/exhibitors/${id}`, { token }),
