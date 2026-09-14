@@ -73,6 +73,22 @@ export default function Home() {
 
   return (
     <>
+      <div className="organizer-logos organizer-logos-top" data-testid="home-organizer-logos-top">
+        <div className="organizer-logo-item">
+          <span className="organizer-logo-label">Managed By</span>
+          <img
+            src={economicAffairsLogo}
+            alt="Dawoodi Bohra Department of Economic Affairs — Nagpur Jamiyat"
+            className="organizer-logo-img organizer-logo-img-tall"
+          />
+        </div>
+        <div className="organizer-logo-divider" aria-hidden="true" />
+        <div className="organizer-logo-item">
+          <span className="organizer-logo-label">In Association With</span>
+          <img src={dbohraLogo} alt="dbohra — A Global Business Network" className="organizer-logo-img organizer-logo-img-wide" />
+        </div>
+      </div>
+
       <Hero />
 
       <section className="section stats-section">
@@ -158,22 +174,6 @@ export default function Home() {
             </p>
             <div style={{ marginTop: 40 }}>
               <OrganizerStrip organizers={config.organizers || []} />
-            </div>
-
-            <div className="organizer-logos">
-              <div className="organizer-logo-item">
-                <span className="organizer-logo-label">Managed By</span>
-                <img
-                  src={economicAffairsLogo}
-                  alt="Dawoodi Bohra Department of Economic Affairs — Nagpur Jamiyat"
-                  className="organizer-logo-img organizer-logo-img-tall"
-                />
-              </div>
-              <div className="organizer-logo-divider" aria-hidden="true" />
-              <div className="organizer-logo-item">
-                <span className="organizer-logo-label">In Association With</span>
-                <img src={dbohraLogo} alt="dbohra — A Global Business Network" className="organizer-logo-img organizer-logo-img-wide" />
-              </div>
             </div>
           </Reveal>
         </div>

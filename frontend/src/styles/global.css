@@ -1853,6 +1853,14 @@ p {
   }
 }
 
+.organizer-logos-top {
+  margin-top: 0;
+  padding: 20px 16px;
+  border-top: none;
+  border-bottom: 1px solid var(--border-soft, #ece4d6);
+  background: #fff;
+}
+
 /* ---------- Admin (kept as a distinct, dark-accented internal tool) ---------- */
 .admin-shell {
   min-height: 100vh;
