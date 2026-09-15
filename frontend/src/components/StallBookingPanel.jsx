@@ -45,7 +45,8 @@ export default function StallBookingPanel({ token, onChange }) {
   const [stalls, setStalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
-  const [active, setActive] = useState(null); // the stall being booked
+  const [selected, setSelected] = useState([]); // stalls chosen to book together
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState("");
@@ -90,22 +91,31 @@ export default function StallBookingPanel({ token, onChange }) {
   const visible = filter === "all" ? stalls : stalls.filter((s) => s.packageCode === filter);
   const hovered = stalls.find((s) => s.stallNumber === hover);
 
-  function resetForm(stall) {
-    setForm({ ...EMPTY, amount: stall.rate != null ? String(stall.rate) : "" });
+  function toggleSelect(stall) {
+    if (stall.status !== "available") {
+      alert(`${stall.stallNumber} is ${STATUS_LABEL[stall.status] || stall.status}.`);
+      return;
+    }
+    setSelected((prev) => {
+      const exists = prev.some((s) => s.stallNumber === stall.stallNumber);
+      return exists ? prev.filter((s) => s.stallNumber !== stall.stallNumber) : [...prev, stall];
+    });
+  }
+
+  function clearSelection() {
+    setSelected([]);
+  }
+
+  function openBookingForm() {
+    if (selected.length === 0) return;
+    const total = selected.reduce((sum, s) => sum + (s.rate || 0), 0);
+    setForm({ ...EMPTY, amount: total ? String(total) : "" });
     setLogoFile(null);
     setLogoPreview("");
     setProductImageFiles([]);
     setProductImagePreviews([]);
     setError("");
-  }
-
-  function openBooking(stall) {
-    if (stall.status !== "available") {
-      alert(`${stall.stallNumber} is ${STATUS_LABEL[stall.status] || stall.status}.`);
-      return;
-    }
-    setActive(stall);
-    resetForm(stall);
+    setShowForm(true);
   }
 
   function update(field, value) {
@@ -139,30 +149,38 @@ export default function StallBookingPanel({ token, onChange }) {
   async function submitBooking(e) {
     e.preventDefault();
     setError("");
+    if (selected.length === 0) {
+      setError("Please select at least one stall.");
+      return;
+    }
     if (!form.contactPerson.trim() || !form.companyName.trim() || !form.email.trim() || !form.phone.trim()) {
       setError("Contact name, company name, email and mobile are required.");
       return;
     }
     setSaving(true);
     try {
+      const stallNumbers = selected.map((s) => s.stallNumber).join(",");
       const res = await api.adminBookStall(token, {
         ...form,
-        stallNumber: active.stallNumber,
+        stallNumbers,
         logo: logoFile || undefined,
         productImages: productImageFiles,
       });
-      setNotice(res.message || `Stall ${active.stallNumber} booked.`);
-      setActive(null);
+      setNotice(res.message || `${stallNumbers} booked.`);
+      setShowForm(false);
+      setSelected([]);
       await load();
       onChange?.();
     } catch (err) {
-      setError(err?.message || "Could not book the stall.");
+      setError(err?.message || "Could not book the stall(s).");
     } finally {
       setSaving(false);
     }
   }
 
-  const activePackage = active && packages.find((p) => p.code === active.packageCode);
+  const activePackage = selected[0] && packages.find((p) => p.code === selected[0].packageCode);
+  const selectedTotal = selected.reduce((sum, s) => sum + (s.rate || 0), 0);
+  const isSelected = (sn) => selected.some((s) => s.stallNumber === sn);
 
   return (
     <div>
@@ -170,7 +188,7 @@ export default function StallBookingPanel({ token, onChange }) {
         <div>
           <h3 style={{ margin: 0 }}>Book a Stall</h3>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
-            Click any available (green) stall to open the exhibitor form and book it directly — including Ruby stalls and the split L15–L27 halves.
+            Click available (green) stalls to select one or more — including Ruby stalls and the split L15–L27 halves — then book them together under one name.
           </p>
         </div>
       </div>
@@ -220,16 +238,16 @@ export default function StallBookingPanel({ token, onChange }) {
             src={mapUrl}
             alt="Venue stall layout"
             wrapProps={{ onMouseLeave: hideTip }}
-            hint="Zoom in to read stall numbers · click a green stall to book it"
+            hint="Zoom in to read stall numbers · click green stalls to select · book them together"
           >
             {visible.map((s) => (
               <div
                 key={s.stallNumber}
-                className={`map-marker status-${s.status} ${hover === s.stallNumber ? "is-hover" : ""}`}
+                className={`map-marker status-${s.status} ${hover === s.stallNumber ? "is-hover" : ""} ${isSelected(s.stallNumber) ? "is-selected" : ""}`}
                 style={{ left: `${s.mapX}%`, top: `${s.mapY}%`, cursor: s.status === "available" ? "pointer" : "default" }}
                 {...markerProps(s.stallNumber)}
                 onClick={(e) => {
-                  if (s.status === "available") openBooking(s);
+                  if (s.status === "available") toggleSelect(s);
                   else toggleTip(s.stallNumber, e.currentTarget);
                 }}
                 role="button"
@@ -245,33 +263,58 @@ export default function StallBookingPanel({ token, onChange }) {
         </>
       )}
 
-      {active && (
+      {selected.length > 0 && !showForm && (
+        <div className="booking-select-bar" data-testid="booking-select-bar">
+          <div className="booking-select-chips">
+            <strong style={{ marginRight: 6 }}>{selected.length} selected:</strong>
+            {selected.map((s) => (
+              <span key={s.stallNumber} className="booking-chip">
+                {s.stallNumber}
+                <button type="button" onClick={() => toggleSelect(s)} aria-label={`Remove ${s.stallNumber}`}>
+                  <Icon name="x" size={12} />
+                </button>
+              </span>
+            ))}
+            {selectedTotal > 0 && (
+              <span className="booking-select-total">Total list: {formatRate(selectedTotal)}</span>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn btn-outline" onClick={clearSelection}>Clear</button>
+            <button type="button" className="btn btn-primary" onClick={openBookingForm} data-testid="booking-open-form">
+              Book {selected.length} stall{selected.length > 1 ? "s" : ""}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showForm && (
         <RecordFrame
-          title={`Book stall ${active.stallNumber}`}
-          subtitle={`${packageLabel(active.packageCode)}${activePackage?.eligibility ? " · " + activePackage.eligibility : ""}`}
+          title={selected.length > 1 ? `Book ${selected.length} stalls` : `Book stall ${selected[0]?.stallNumber}`}
+          subtitle={`${activePackage ? packageLabel(activePackage.code) : ""}${activePackage?.eligibility ? " · " + activePackage.eligibility : ""}`}
           error={error}
-          onClose={() => setActive(null)}
+          onClose={() => setShowForm(false)}
           wide
         >
           <form onSubmit={submitBooking} className="modal-body" data-testid="booking-form">
-            <div className="modal-section-label">Stall &amp; amount</div>
+            <div className="modal-section-label">Stall{selected.length > 1 ? "s" : ""} &amp; amount</div>
             <div className="form-row">
               <div className="field">
-                <label>Stall</label>
+                <label>Stall{selected.length > 1 ? "s" : ""}</label>
                 <div className="field-readonly">
-                  {active.stallNumber} · {packageLabel(active.packageCode)}
-                  {active.rate != null && <span style={{ color: "var(--text-muted)" }}> · list {formatRate(active.rate)}</span>}
+                  {selected.map((s) => s.stallNumber).join(", ")}
+                  {selectedTotal > 0 && <span style={{ color: "var(--text-muted)" }}> · list {formatRate(selectedTotal)}</span>}
                 </div>
               </div>
               <div className="field">
-                <label>Amount (₹) *</label>
+                <label>Total Amount (₹) *</label>
                 <input type="number" min={0} value={form.amount} onChange={(e) => update("amount", e.target.value)} placeholder="e.g. 12000" data-testid="booking-amount" />
               </div>
             </div>
             <div className="form-row">
               <div className="field">
                 <label>Number of Stalls</label>
-                <input type="number" min={1} value={form.numberOfStalls} onChange={(e) => update("numberOfStalls", Number(e.target.value) || 1)} />
+                <div className="field-readonly">{selected.length}</div>
               </div>
               <div className="field">
                 <label>Fascia Name on Stall</label>
@@ -427,11 +470,11 @@ export default function StallBookingPanel({ token, onChange }) {
             </div>
 
             <div className="modal-footer">
-              <button type="button" className="btn btn-outline" onClick={() => setActive(null)} disabled={saving}>
+              <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)} disabled={saving}>
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary" disabled={saving} data-testid="booking-submit">
-                {saving ? "Booking…" : "Confirm Booking"}
+                {saving ? "Booking…" : `Confirm Booking${selected.length > 1 ? ` (${selected.length} stalls)` : ""}`}
               </button>
             </div>
           </form>

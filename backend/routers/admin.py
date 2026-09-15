@@ -232,7 +232,8 @@ async def edit_exhibitor(
 
 @router.post("/exhibitors/book")
 async def admin_book_stall(
-    stallNumber: str = Form(...),
+    stallNumber: str = Form(""),
+    stallNumbers: str = Form(""),
     amount: str = Form(""),
     itsNumber: str = Form(""),
     contactPerson: str = Form(...),
@@ -264,24 +265,34 @@ async def admin_book_stall(
     """Admin-side stall booking: same fields as the public exhibitor form, but
     the stall is chosen beforehand (on the map). Books ANY stall — including
     admin-only Ruby — as a confirmed exhibitor with a custom amount, and sends
-    the confirmation email."""
-    stall_number = stallNumber.strip().upper()
-    if not stall_number:
-        raise HTTPException(status_code=400, detail="Please pick a stall to book.")
+    the confirmation email. Multiple stalls can be booked under one exhibitor
+    by passing a comma-separated `stallNumbers`."""
+    raw_numbers = stallNumbers or stallNumber or ""
+    stall_number_list = []
+    for part in raw_numbers.replace(",", " ").split():
+        up = part.strip().upper()
+        if up and up not in stall_number_list:
+            stall_number_list.append(up)
+    if not stall_number_list:
+        raise HTTPException(status_code=400, detail="Please pick at least one stall to book.")
     if not contactPerson.strip() or not email.strip() or not phone.strip() or not companyName.strip():
         raise HTTPException(status_code=400, detail="Contact name, email, mobile and company name are required.")
 
     await release_expired_holds(db)
-    stall = await db.stalls.find_one({"stallNumber": stall_number})
-    if not stall:
-        raise HTTPException(status_code=404, detail="That stall could not be found.")
-    if stall["status"] != "available":
-        raise HTTPException(status_code=409, detail="That stall is not available — it may already be booked or reserved.")
+    stalls = []
+    for sn in stall_number_list:
+        stall = await db.stalls.find_one({"stallNumber": sn})
+        if not stall:
+            raise HTTPException(status_code=404, detail=f"Stall {sn} could not be found.")
+        if stall["status"] != "available":
+            raise HTTPException(status_code=409, detail=f"Stall {sn} is not available — it may already be booked or reserved.")
+        stalls.append(stall)
 
+    first_stall = stalls[0]
     try:
-        amt = int(round(float(amount))) if str(amount).strip() else (stall.get("rate") or 0)
+        amt = int(round(float(amount))) if str(amount).strip() else sum(s.get("rate") or 0 for s in stalls)
     except (TypeError, ValueError):
-        amt = stall.get("rate") or 0
+        amt = sum(s.get("rate") or 0 for s in stalls)
 
     logo_url = ""
     if logo is not None:
@@ -294,6 +305,7 @@ async def admin_book_stall(
         filename = await save_upload(img, "product-images", EXHIBITOR_FILE_MAX_BYTES)
         product_image_urls.append(f"/uploads/product-images/{filename}")
 
+    stall_number_display = ", ".join(stall_number_list)
     registration_code = generate_registration_code("STL")
     doc = new_exhibitor_document({
         "registrationCode": registration_code,
@@ -304,23 +316,33 @@ async def admin_book_stall(
         "linkedin": linkedin, "instagram": instagram, "facebook": facebook,
         "logoUrl": logo_url, "productImages": product_image_urls,
         "category": category, "productsServices": productsServices, "message": message,
-        "stallPackage": stall.get("packageCode", ""), "numberOfStalls": numberOfStalls or 1,
-        "stallNumber": stall_number, "stallId": stall["_id"], "stallRate": amt,
+        "stallPackage": first_stall.get("packageCode", ""), "numberOfStalls": len(stall_number_list),
+        "stallNumber": stall_number_display, "stallId": first_stall["_id"], "stallRate": amt,
         "fasciaName": fasciaName,
     })
+    doc["stallNumbers"] = stall_number_list
     doc["status"] = "confirmed"
 
     result = await db.exhibitors.insert_one(doc)
     doc["_id"] = result.inserted_id
 
-    claimed = await db.stalls.find_one_and_update(
-        {"_id": stall["_id"], "status": "available"},
-        {"$set": {"status": "booked", "bookedBy": doc["_id"], "heldBy": None, "tempHoldToken": None, "tempHoldExpiresAt": None}},
-        return_document=True,
-    )
-    if not claimed:
-        await db.exhibitors.delete_one({"_id": doc["_id"]})
-        raise HTTPException(status_code=409, detail="That stall was just taken. Please pick another.")
+    claimed_ids = []
+    for stall in stalls:
+        claimed = await db.stalls.find_one_and_update(
+            {"_id": stall["_id"], "status": "available"},
+            {"$set": {"status": "booked", "bookedBy": doc["_id"], "heldBy": None, "tempHoldToken": None, "tempHoldExpiresAt": None}},
+            return_document=True,
+        )
+        if not claimed:
+            # A stall was taken between validation and claim: roll back everything.
+            if claimed_ids:
+                await db.stalls.update_many(
+                    {"_id": {"$in": claimed_ids}},
+                    {"$set": {"status": "available", "bookedBy": None, "heldBy": None}},
+                )
+            await db.exhibitors.delete_one({"_id": doc["_id"]})
+            raise HTTPException(status_code=409, detail=f"Stall {stall['stallNumber']} was just taken. Please try again.")
+        claimed_ids.append(stall["_id"])
 
     try:
         await send_mail(
@@ -334,7 +356,7 @@ async def admin_book_stall(
         await db.exhibitors.update_one({"_id": doc["_id"]}, {"$set": {"emailError": str(mail_err)}})
 
     updated = await db.exhibitors.find_one({"_id": doc["_id"]})
-    return {"success": True, "message": f"Stall {stall_number} booked for {doc['companyName']}.", "data": serialize_doc(updated)}
+    return {"success": True, "message": f"{stall_number_display} booked for {doc['companyName']}.", "data": serialize_doc(updated)}
 
 
 @router.delete("/exhibitors/{id}")
@@ -354,6 +376,11 @@ async def delete_exhibitor(
             {"_id": exhibitor["stallId"], "$or": [{"heldBy": oid}, {"bookedBy": oid}]},
             {"$set": {"status": "available", "heldBy": None, "bookedBy": None}},
         )
+    # Release any additional stalls booked under this exhibitor (multi-stall bookings).
+    await db.stalls.update_many(
+        {"$or": [{"heldBy": oid}, {"bookedBy": oid}]},
+        {"$set": {"status": "available", "heldBy": None, "bookedBy": None}},
+    )
     await db.exhibitors.delete_one({"_id": oid})
     return {"success": True, "message": "Exhibitor registration deleted and its stall released"}
 
@@ -493,6 +520,12 @@ async def reject_exhibitor(
             {"$set": {"status": "available", "heldBy": None, "bookedBy": None, "tempHoldToken": None, "tempHoldExpiresAt": None,
                       "updatedAt": utcnow()}},
         )
+    # Release any additional stalls booked under this exhibitor (multi-stall bookings).
+    await db.stalls.update_many(
+        {"$or": [{"heldBy": oid}, {"bookedBy": oid}]},
+        {"$set": {"status": "available", "heldBy": None, "bookedBy": None, "tempHoldToken": None, "tempHoldExpiresAt": None,
+                  "updatedAt": utcnow()}},
+    )
 
     # Tell the exhibitor, with a link to register again.
     try:

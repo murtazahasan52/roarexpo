@@ -453,19 +453,15 @@ export default function AdminDashboard() {
                     <tr>
                       <th>Code</th>
                       <th>Company</th>
-                      <th>Stall</th>
+                      <th className="exh-stall-col">Stall · Status · Actions</th>
                       <th>Size</th>
                       <th>Contact</th>
                       <th>Email</th>
                       <th>Phone</th>
                       <th>Category</th>
-                      <th>Status</th>
-                      <th>Payment</th>
-                      <th>Approved By</th>
                       <th>Email Sent</th>
                       <th>WhatsApp</th>
                       <th>Registered</th>
-                      <th className="row-actions-cell">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -473,53 +469,89 @@ export default function AdminDashboard() {
                       <tr key={r._id}>
                         <td>{r.registrationCode}</td>
                         <td>{r.companyName}</td>
-                        <td>
-                          {r.stallNumber ? (
-                            <>
-                              {r.stallNumber}
-                              <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{r.stallPackage}</div>
-                            </>
-                          ) : (
-                            r.stallPackage
+                        <td className="exh-stall-cell">
+                          <div className="exh-stall-head">
+                            {r.stallNumber ? (
+                              <>
+                                <strong>{r.stallNumber}</strong>
+                                <span className="exh-muted">{r.stallPackage}</span>
+                              </>
+                            ) : (
+                              <span>{r.stallPackage}</span>
+                            )}
+                          </div>
+                          {r.fasciaName && <div className="exh-muted">Fascia: {r.fasciaName}</div>}
+                          <div className="exh-badges">
+                            <span
+                              className={`badge ${
+                                r.status === "confirmed"
+                                  ? "badge-green"
+                                  : r.status === "cancelled"
+                                  ? "badge-gray"
+                                  : "badge-navy"
+                              }`}
+                              data-testid={`status-badge-${r._id}`}
+                            >
+                              {r.status === "confirmed" ? "Confirmed" : r.status === "cancelled" ? "Cancelled" : "Pending"}
+                            </span>
+                            {r.status === "confirmed" && (
+                              <span
+                                className={`badge ${r.paymentStatus === "paid" ? "badge-green" : "badge-navy"}`}
+                                data-testid={`payment-badge-${r._id}`}
+                              >
+                                {r.paymentStatus === "paid" ? "Paid" : "Unpaid"}
+                              </span>
+                            )}
+                          </div>
+                          {r.status === "confirmed" && (r.approvedByName || r.approvedBy?.name) && (
+                            <div className="exh-muted">Approved by {r.approvedByName || r.approvedBy?.name}</div>
                           )}
-                          {r.fasciaName && (
-                            <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Fascia: {r.fasciaName}</div>
-                          )}
+                          <div className="exh-actions">
+                            {canManageExhibitors && r.status === "pending" && (
+                              <>
+                                <button className="btn-mini btn-mini-green" onClick={() => handleApprove(r._id)} disabled={decidingId === r._id} data-testid={`approve-${r._id}`}>
+                                  {decidingId === r._id ? "…" : "Approve"}
+                                </button>
+                                <button className="btn-mini btn-mini-red" onClick={() => handleReject(r._id)} disabled={decidingId === r._id} data-testid={`reject-${r._id}`}>
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            {canManageExhibitors && r.status === "cancelled" && (
+                              <button className="btn-mini" onClick={() => handleReopen(r)} disabled={decidingId === r._id} data-testid={`reopen-${r._id}`}>
+                                {decidingId === r._id ? "…" : "Reopen"}
+                              </button>
+                            )}
+                            {canManageExhibitors && r.status === "confirmed" && (
+                              <button
+                                className={`btn-mini ${r.paymentStatus === "paid" ? "btn-mini-amber" : "btn-mini-green"}`}
+                                onClick={() => handleTogglePayment(r)}
+                                data-testid={`payment-toggle-${r._id}`}
+                              >
+                                Mark {r.paymentStatus === "paid" ? "Unpaid" : "Paid"}
+                              </button>
+                            )}
+                            <Link to={`/admin/exhibitors/${r._id}`} className="btn-mini" data-testid={`view-${r._id}`}>View</Link>
+                            {canManageExhibitors && (
+                              <Link to={`/admin/exhibitors/${r._id}?edit=1`} className="btn-mini">Edit</Link>
+                            )}
+                            {canSeeInvoice && (
+                              <button className="btn-mini" onClick={() => handleInvoice(r._id)} disabled={invoicingId === r._id}>
+                                {invoicingId === r._id ? "…" : "Invoice"}
+                              </button>
+                            )}
+                            {canManageExhibitors && (
+                              <button className="btn-mini btn-mini-red" onClick={() => handleDeleteExhibitor(r)} disabled={deletingId === r._id}>
+                                {deletingId === r._id ? "…" : "Delete"}
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td>{r.stallSize || pkgSize[r.stallPackage] || "—"}</td>
                         <td>{r.contactPerson}</td>
                         <td>{r.email}</td>
                         <td>{r.phone}</td>
                         <td>{r.category}</td>
-                        <td>
-                          <span
-                            className={`badge ${
-                              r.status === "confirmed"
-                                ? "badge-green"
-                                : r.status === "cancelled"
-                                ? "badge-gray"
-                                : "badge-navy"
-                            }`}
-                          >
-                            {r.status === "confirmed" ? "Confirmed" : r.status === "cancelled" ? "Cancelled" : "Pending"}
-                          </span>
-                        </td>
-                        <td>
-                          {r.status === "confirmed" ? (
-                            <button
-                              className={`badge ${r.paymentStatus === "paid" ? "badge-green" : "badge-navy"}`}
-                              style={{ cursor: canManageExhibitors ? "pointer" : "default", border: "none" }}
-                              onClick={() => canManageExhibitors && handleTogglePayment(r)}
-                              title={canManageExhibitors ? "Click to toggle paid/unpaid" : ""}
-                              data-testid={`payment-toggle-${r._id}`}
-                            >
-                              {r.paymentStatus === "paid" ? "Paid" : "Unpaid"}
-                            </button>
-                          ) : (
-                            <span style={{ color: "var(--text-muted)" }}>—</span>
-                          )}
-                        </td>
-                        <td style={{ fontSize: 12.5 }}>{r.approvedByName || r.approvedBy?.name || "—"}</td>
                         <td>
                           <span className={`badge ${r.emailSent ? "badge-green" : "badge-gray"}`}>
                             {r.emailSent ? "Sent" : "Pending"}
@@ -531,52 +563,11 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td>{new Date(r.createdAt).toLocaleString()}</td>
-                        <td className="row-actions-cell">
-                          <details className="row-actions-menu">
-                            <summary className="row-actions-trigger" data-testid={`row-actions-${r._id}`} aria-label="Actions">⋯</summary>
-                            <div className="row-actions-menu-list">
-                          {canManageExhibitors && r.status === "pending" && (
-                            <>
-                              <button className="row-menu-item" onClick={() => handleApprove(r._id)} disabled={decidingId === r._id}>
-                                {decidingId === r._id ? "…" : "Approve"}
-                              </button>
-                              <button className="row-menu-item row-menu-danger" onClick={() => handleReject(r._id)} disabled={decidingId === r._id}>
-                                Reject
-                              </button>
-                            </>
-                          )}
-                          {canManageExhibitors && r.status === "cancelled" && (
-                            <button className="row-menu-item" onClick={() => handleReopen(r)} disabled={decidingId === r._id}>
-                              {decidingId === r._id ? "…" : "Reopen"}
-                            </button>
-                          )}
-                          {canManageExhibitors && r.status === "confirmed" && (
-                            <button className="row-menu-item" onClick={() => handleTogglePayment(r)}>
-                              Mark {r.paymentStatus === "paid" ? "Unpaid" : "Paid"}
-                            </button>
-                          )}
-                          <Link to={`/admin/exhibitors/${r._id}`} className="row-menu-item">View</Link>
-                          {canManageExhibitors && (
-                            <Link to={`/admin/exhibitors/${r._id}?edit=1`} className="row-menu-item">Edit</Link>
-                          )}
-                          {canSeeInvoice && (
-                            <button className="row-menu-item" onClick={() => handleInvoice(r._id)} disabled={invoicingId === r._id}>
-                              {invoicingId === r._id ? "…" : "Invoice"}
-                            </button>
-                          )}
-                          {canManageExhibitors && (
-                            <button className="row-menu-item row-menu-danger" onClick={() => handleDeleteExhibitor(r)} disabled={deletingId === r._id}>
-                              {deletingId === r._id ? "…" : "Delete"}
-                            </button>
-                          )}
-                            </div>
-                          </details>
-                        </td>
                       </tr>
                     ))}
                     {!loading && rows.length === 0 && (
                       <tr>
-                        <td colSpan={15} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                        <td colSpan={11} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                           No exhibitor registrations yet.
                         </td>
                       </tr>

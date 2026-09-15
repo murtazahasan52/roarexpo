@@ -1860,6 +1860,58 @@ p {
   gap: 32px;
 }
 
+/* Exhibitor list: stall cell with inline status + actions (no horizontal scroll to act) */
+.exh-stall-col { min-width: 260px; }
+.exh-stall-cell { min-width: 260px; vertical-align: top; }
+.exh-stall-head { display: flex; align-items: baseline; gap: 8px; }
+.exh-stall-head strong { font-size: 14px; }
+.exh-muted { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+.exh-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.exh-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.btn-mini {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 5px 11px; font-size: 12px; font-weight: 600; line-height: 1.1;
+  border-radius: 7px; border: 1px solid var(--border-soft, #d9d2c6);
+  background: #fff; color: #333; cursor: pointer; text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.btn-mini:hover { background: #f5f2ec; }
+.btn-mini:disabled { opacity: 0.55; cursor: default; }
+.btn-mini-green { border-color: #1f9d55; color: #1f9d55; }
+.btn-mini-green:hover { background: #1f9d55; color: #fff; }
+.btn-mini-red { border-color: #d64545; color: #d64545; }
+.btn-mini-red:hover { background: #d64545; color: #fff; }
+.btn-mini-amber { border-color: #c07d18; color: #c07d18; }
+.btn-mini-amber:hover { background: #c07d18; color: #fff; }
+
+/* Admin booking: multi-select bar + selected marker */
+.map-marker.is-selected {
+  outline: 3px solid #1c3d6e;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px #fff, 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 5;
+}
+.booking-select-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; margin-top: 14px; padding: 14px 16px;
+  background: #fff; border: 1px solid var(--border-soft, #ece4d6); border-radius: 12px;
+  position: sticky; bottom: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.booking-select-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.booking-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 4px 3px 10px; font-size: 12.5px; font-weight: 600;
+  background: #eef3fb; color: #1c3d6e; border-radius: 999px;
+}
+.booking-chip button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border: none; border-radius: 50%;
+  background: rgba(28,61,110,0.12); color: #1c3d6e; cursor: pointer;
+}
+.booking-chip button:hover { background: rgba(28,61,110,0.25); }
+.booking-select-total { font-size: 12.5px; color: var(--text-muted); margin-left: 4px; }
+
 /* ---------- Admin (kept as a distinct, dark-accented internal tool) ---------- */
 .admin-shell {
   min-height: 100vh;
