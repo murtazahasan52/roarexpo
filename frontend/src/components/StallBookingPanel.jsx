@@ -59,6 +59,7 @@ export default function StallBookingPanel({ token, onChange }) {
 
   const packages = config.stallPackages || [];
   const packageLabel = (code) => packages.find((p) => p.code === code)?.label || code;
+  const rateOf = (stall) => packages.find((p) => p.code === stall?.packageCode)?.rate || 0;
   const formatRate = (n) => (n != null ? `₹${Number(n).toLocaleString("en-IN")}` : "");
 
   async function load() {
@@ -108,7 +109,7 @@ export default function StallBookingPanel({ token, onChange }) {
 
   function openBookingForm() {
     if (selected.length === 0) return;
-    const total = selected.reduce((sum, s) => sum + (s.rate || 0), 0);
+    const total = selected.reduce((sum, s) => sum + rateOf(s), 0);
     setForm({ ...EMPTY, amount: total ? String(total) : "" });
     setLogoFile(null);
     setLogoPreview("");
@@ -179,7 +180,7 @@ export default function StallBookingPanel({ token, onChange }) {
   }
 
   const activePackage = selected[0] && packages.find((p) => p.code === selected[0].packageCode);
-  const selectedTotal = selected.reduce((sum, s) => sum + (s.rate || 0), 0);
+  const selectedTotal = selected.reduce((sum, s) => sum + rateOf(s), 0);
   const isSelected = (sn) => selected.some((s) => s.stallNumber === sn);
 
   return (

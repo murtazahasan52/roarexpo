@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend UI verification of Admin Dashboard exhibitor row layout and multi-stall booking. Admin login OK. Exhibitor table now has 'STALL · STATUS · ACTIONS' column with stall number + status badge + payment badge + inline action buttons (btn-mini) below the stall name — NO '⋯' dropdown observed. Multi-select booking on the Book-a-Stall map works: selecting two available markers (B1, B2) applies is-selected class, shows selection bar with 'Book 2 stalls' + Clear; opening the form shows title 'Book 2 stalls', readonly Stalls='B1, B2', Number of Stalls=2; submitting creates ONE confirmed exhibitor with Stall cell showing 'B1, B2' and both markers become status-booked. Payment toggle verified: Unpaid→Paid, button label toggles Mark Paid↔Mark Unpaid, badge updates. Cleanup: created TEST rows deleted after test.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Book a Stall form", "issue": "Total Amount field does NOT default to the summed list rate for the selected stall(s) — it renders empty with placeholder 'e.g. 12000'. The spec explicitly requires Total Amount to default to the summed list rate. Number of Stalls and comma-joined Stalls value are correctly prefilled.", "affected_selectors": ["[data-testid='booking-amount']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "In StallBookingPanel.jsx booking form, prefill data-testid='booking-amount' with the sum of the selected stalls' list rates (currently blank).",
+    "Optional: Approve/Reject inline buttons for pending exhibitors could not be exercised because admin-created bookings auto-confirm. Consider adding a way to test this via a public exhibitor registration flow, or seed a pending exhibitor for regression."
+  ],
+  "critical_code_review_comments": [
+    "Booking form Total Amount not auto-populated from stall rates despite selection — user has to type the amount manually every time. UX bug given spec."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "90%"},
+  "test_credentials": "admin@roarexpo.com / Admin@12345 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created and then deleted two TEST exhibitors: 'TEST Multi Co' on stalls B1,B2 and 'TEST Company Two' on B3. Data cleaned up at end of test.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All two feature changes are otherwise functional. Only remaining gap is Total Amount default in the multi-stall booking form. When testing, click the tabs via '.admin-tab' locator (they are divs, not <button>s). Marker testids are book-marker-<STALLNUM>, e.g. book-marker-B1. Payment toggle testid: payment-toggle-<exhibitorId>. Delete testid: delete-<exhibitorId>.",
+  "rca of the issue": "Total Amount empty: the useEffect/state that recomputes selected stall rates likely writes to a variable other than the amount input state, or the sum defaults to 0/'' when the panel opens from multi-select. Check StallBookingPanel.jsx open-form handler — it should compute sum(selectedStalls.map(s => s.rate)) and set the amount state before rendering the input."
+}
