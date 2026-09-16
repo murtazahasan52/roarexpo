@@ -41,58 +41,62 @@ TEMPLATE_DEFS = [
         "label": "Visitor Registration",
         "description": "Sent to a visitor right after they register.",
         "variables": ["Visitor name", "Registration ID"],
-        "body": "Hi {{1}}, thanks for registering for ROAR Business Expo Nagpur. Your registration ID is {{2}}. Show your QR invitation at the entrance for quick check-in.",
+        "body": "Afzalus Salaam {{1}}, thank you for registering as a visitor for Roar Business Expo. Your registration ID is {{2}}. Please show this ID at the entrance for a quick check-in. Dawoodi Bohra Department of Economic Affairs Nagpur - Roar Business Expo",
     },
     {
         "key": "exhibitor_registration",
         "label": "Exhibitor Registration",
         "description": "Sent to an exhibitor right after they register a stall.",
         "variables": ["Contact name", "Registration ID"],
-        "body": "Hi {{1}}, thanks for registering as an exhibitor for ROAR Business Expo Nagpur. Your registration ID is {{2}}. Your stall is reserved pending organizer approval and we will message you once it is confirmed.",
+        "body": "Afzalus Salaam {{1}}, thank you for registering as an exhibitor for Roar Business Expo. Your registration ID is {{2}}. Your stall is reserved and pending approval, and we will inform you once it is confirmed. Dawoodi Bohra Department of Economic Affairs Nagpur - Roar Business Expo",
     },
     {
         "key": "approval",
         "label": "Approval",
         "description": "Sent when an exhibitor's stall booking is approved.",
         "variables": ["Contact name", "Stall number", "Registration ID"],
-        "body": "Hi {{1}}, great news. Your stall {{2}} for ROAR Business Expo Nagpur is confirmed. Your registration ID is {{3}}. Our team will share the next steps shortly.",
+        "body": "Afzalus Salaam {{1}}, your stall {{2}} for Roar Business Expo is confirmed. Your registration ID is {{3}}. Our team will share the next steps with you shortly. Dawoodi Bohra Department of Economic Affairs Nagpur - Roar Business Expo",
     },
     {
         "key": "rejection",
         "label": "Rejection",
         "description": "Sent when an exhibitor's stall booking is rejected.",
         "variables": ["Contact name", "Registration ID"],
-        "body": "Hi {{1}}, thank you for your interest in ROAR Business Expo Nagpur. We are unable to confirm your stall booking for ID {{2}} at this time. Please contact our team for assistance.",
+        "body": "Afzalus Salaam {{1}}, thank you for your interest in Roar Business Expo. We are unable to confirm your stall booking for registration ID {{2}} at this time. Please contact our team for assistance. Dawoodi Bohra Department of Economic Affairs Nagpur - Roar Business Expo",
     },
     {
         "key": "payment_done",
         "label": "Payment Done",
         "description": "Sent when an exhibitor's payment is marked as paid.",
         "variables": ["Contact name", "Stall number"],
-        "body": "Hi {{1}}, we have received your payment for stall {{2}} at ROAR Business Expo Nagpur. Thank you. Your booking is now fully confirmed.",
+        "body": "Afzalus Salaam {{1}}, we have received your payment for stall {{2}} at Roar Business Expo. Thank you. Your booking is now fully confirmed. Dawoodi Bohra Department of Economic Affairs Nagpur - Roar Business Expo",
     },
     {
         "key": "unpaid",
         "label": "Unpaid / Payment Pending",
         "description": "Sent to remind an exhibitor that payment is pending.",
         "variables": ["Contact name", "Stall number"],
-        "body": "Hi {{1}}, this is a reminder that payment for your stall {{2}} at ROAR Business Expo Nagpur is pending. Please complete the payment to secure your booking.",
+        "body": "Afzalus Salaam {{1}}, this is a reminder that the payment for your stall {{2}} at Roar Business Expo is still pending. Please complete the payment to secure your booking. Dawoodi Bohra Department of Economic Affairs Nagpur - Roar Business Expo",
     },
     {
         "key": "reminder",
         "label": "Event Reminder",
         "description": "General reminder that can be broadcast to visitors or exhibitors.",
         "variables": ["Name", "Event dates"],
-        "body": "Hi {{1}}, this is a friendly reminder about ROAR Business Expo Nagpur on {{2}}. We look forward to seeing you there.",
+        "body": "Afzalus Salaam {{1}}, this is a friendly reminder about Roar Business Expo on {{2}}. We look forward to welcoming you. Dawoodi Bohra Department of Economic Affairs Nagpur - Roar Business Expo",
     },
     {
         "key": "info_broadcast",
         "label": "Information Broadcast",
         "description": "A flexible message to send information to exhibitors and visitors.",
         "variables": ["Name", "Message"],
-        "body": "Hi {{1}}, {{2}}",
+        "body": "Afzalus Salaam {{1}}, {{2}} Dawoodi Bohra Department of Economic Affairs Nagpur - Roar Business Expo",
     },
 ]
+
+# Bump this when the default bodies change so ensure_templates() re-applies the
+# redesign to existing databases (preview + production) on the next start-up.
+TEMPLATE_BODY_VERSION = "2026-06-utility-v1"
 
 TEMPLATE_KEYS = [t["key"] for t in TEMPLATE_DEFS]
 _DEF_BY_KEY = {t["key"]: t for t in TEMPLATE_DEFS}
@@ -140,17 +144,27 @@ async def save_config(db: AsyncIOMotorDatabase, updates: dict) -> dict:
 
 
 async def ensure_templates(db: AsyncIOMotorDatabase) -> None:
-    """Seed any missing default templates (idempotent, keeps admin edits)."""
+    """Seed missing default templates, and re-apply the default bodies/labels
+    whenever TEMPLATE_BODY_VERSION changes (keeps each template's DLT name and
+    enabled flag)."""
     for t in TEMPLATE_DEFS:
         existing = await db.whatsapp_templates.find_one({"key": t["key"]})
         if not existing:
             await db.whatsapp_templates.insert_one({
                 "key": t["key"], "label": t["label"], "description": t["description"],
                 "variables": t["variables"], "body": t["body"], "templateName": t.get("templateName", ""),
-                "enabled": True, "createdAt": utcnow(), "updatedAt": utcnow(),
+                "enabled": True, "bodyVersion": TEMPLATE_BODY_VERSION,
+                "createdAt": utcnow(), "updatedAt": utcnow(),
             })
-        elif "templateName" not in existing:
-            await db.whatsapp_templates.update_one({"key": t["key"]}, {"$set": {"templateName": ""}})
+        elif existing.get("bodyVersion") != TEMPLATE_BODY_VERSION:
+            await db.whatsapp_templates.update_one(
+                {"key": t["key"]},
+                {"$set": {"label": t["label"], "description": t["description"],
+                          "variables": t["variables"], "body": t["body"],
+                          "bodyVersion": TEMPLATE_BODY_VERSION,
+                          "templateName": existing.get("templateName", ""),
+                          "updatedAt": utcnow()}},
+            )
 
 
 async def list_templates(db: AsyncIOMotorDatabase) -> list:
