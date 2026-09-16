@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-21-sbg-swap-img",
+  "version": "2026-09-22-toprow-gold",
   "layoutFile": "final-layout.png",
   "source": "Designed venue artwork v2 (12 Sep 2026: stage, walkway, garden) based on MSB COLOR LAYOUT",
   "imageWidth": 2918,
@@ -102,29 +102,29 @@
       "stallNumber": "G1",
       "packageCode": "gold",
       "size": "6m × 3m",
-      "mapX": 31.11,
+      "mapX": 43.21,
       "mapY": 21.82
     },
     {
       "stallNumber": "G2",
       "packageCode": "gold",
       "size": "6m × 3m",
-      "mapX": 35.01,
+      "mapX": 39.18,
       "mapY": 21.82
     },
     {
       "stallNumber": "G3",
       "packageCode": "gold",
       "size": "6m × 3m",
-      "mapX": 31.11,
-      "mapY": 29.17
+      "mapX": 35.01,
+      "mapY": 21.82
     },
     {
       "stallNumber": "G4",
       "packageCode": "gold",
       "size": "6m × 3m",
-      "mapX": 35.01,
-      "mapY": 29.17
+      "mapX": 31.11,
+      "mapY": 21.82
     },
     {
       "stallNumber": "X1",
@@ -1117,15 +1117,15 @@
       "stallNumber": "S1",
       "packageCode": "silver",
       "size": "4m × 3m",
-      "mapX": 39.18,
-      "mapY": 21.82
+      "mapX": 31.11,
+      "mapY": 29.17
     },
     {
       "stallNumber": "S2",
       "packageCode": "silver",
       "size": "4m × 3m",
-      "mapX": 43.21,
-      "mapY": 21.82
+      "mapX": 35.01,
+      "mapY": 29.17
     },
     {
       "stallNumber": "S3",

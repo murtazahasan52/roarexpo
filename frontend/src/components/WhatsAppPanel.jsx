@@ -24,6 +24,7 @@ function ConfigTab({ token }) {
   const [msg, setMsg] = useState("");
   const [testPhone, setTestPhone] = useState("");
   const [testMsg, setTestMsg] = useState("");
+  const [testOk, setTestOk] = useState(false);
 
   const load = useCallback(async () => {
     const r = await api.adminWaGetConfig(token);
@@ -53,8 +54,9 @@ function ConfigTab({ token }) {
     setTestMsg("");
     try {
       const r = await api.adminWaTest(token, { phone: testPhone });
+      setTestOk(!!r.success);
       setTestMsg(r.message || (r.success ? "Sent." : "Failed."));
-    } catch (e) { setTestMsg(e.message || "Failed."); }
+    } catch (e) { setTestOk(false); setTestMsg(e.message || "Failed."); }
   }
 
   return (
@@ -113,7 +115,7 @@ function ConfigTab({ token }) {
           <input className="search-input" placeholder="10-digit mobile number" value={testPhone} onChange={(e) => setTestPhone(e.target.value)} data-testid="wa-test-phone" />
           <button className="btn btn-dark" style={{ padding: "10px 18px" }} onClick={sendTest} data-testid="wa-test-send">Send Test</button>
         </div>
-        {testMsg && <div style={{ marginTop: 8, fontSize: 13.5, color: "var(--text-muted)" }}>{testMsg}</div>}
+        {testMsg && <div className={`alert ${testOk ? "alert-success" : "alert-error"}`} style={{ marginTop: 10 }} data-testid="wa-test-result">{testMsg}</div>}
       </div>
     </div>
   );
