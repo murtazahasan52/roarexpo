@@ -22,6 +22,7 @@ from utils.email_templates import exhibitor_alert_html, exhibitor_email_html
 from utils.generate_code import generate_registration_code
 from utils.validators import is_valid_email, is_valid_url
 from utils.whatsapp import send_whatsapp
+from utils import whatsapp_service as wa_service
 from utils.mailer import send_mail
 from utils.notify import notify_organizers
 from utils.stall_holds import claim_query, release_expired_holds
@@ -219,13 +220,11 @@ async def register_exhibitor(
         # WhatsApp delivery — non-blocking and safe to skip entirely until a
         # provider is configured (see utils/whatsapp.py).
         try:
-            result_wa = await send_whatsapp(
+            result_wa = await wa_service.send_event(
+                db, "exhibitor_registration",
                 to=doc.get("whatsapp") or doc["phone"],
-                caption=(
-                    f"Thanks for registering for {EVENT['eventName']}! Your registration ID is "
-                    f"{registration_code}. Your stall is reserved pending organizer approval — we'll "
-                    "message you again once it's confirmed."
-                ),
+                variables=[doc.get("contactPerson") or "there", registration_code],
+                recipient_type="exhibitor", recipient_name=doc.get("contactPerson"),
             )
             await db.exhibitors.update_one(
                 {"_id": doc["_id"]},

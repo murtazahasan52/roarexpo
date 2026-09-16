@@ -48,6 +48,12 @@ async def lifespan(app: FastAPI):
         await ensure_owner_admin(db)
     except Exception as err:  # noqa: BLE001
         print("[seed] could not create the owner admin:", err)
+    # Seed the default WhatsApp templates (idempotent — keeps admin edits).
+    try:
+        from utils.whatsapp_service import ensure_templates as _ensure_wa_templates
+        await _ensure_wa_templates(db)
+    except Exception as err:  # noqa: BLE001
+        print("[seed] could not seed WhatsApp templates:", err)
     yield
     await close_db()
 

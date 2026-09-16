@@ -15,6 +15,7 @@ from utils.invitation_card import build_visitor_invitation_pdf
 from utils.mailer import send_mail
 from utils.notify import notify_organizers
 from utils.whatsapp import send_whatsapp
+from utils import whatsapp_service as wa_service
 
 router = APIRouter(prefix="/api/visitors", tags=["visitors"])
 
@@ -90,12 +91,11 @@ async def register_visitor(payload: VisitorRegisterRequest, db: AsyncIOMotorData
         # provider is configured (see utils/whatsapp.py).
         if id_card:
             try:
-                result_wa = await send_whatsapp(
+                result_wa = await wa_service.send_event(
+                    db, "visitor_registration",
                     to=doc["phone"],
-                    caption=(
-                        f"You're invited to {EVENT['eventName']}! Your registration ID is {registration_code}. "
-                        "Show this QR code at the entrance for quick check-in."
-                    ),
+                    variables=[doc.get("fullName") or "there", registration_code],
+                    recipient_type="visitor", recipient_name=doc.get("fullName"),
                     media_url=_public_backend_url(id_card["public_url"]),
                 )
                 await db.visitors.update_one(

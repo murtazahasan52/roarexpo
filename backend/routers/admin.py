@@ -40,6 +40,7 @@ from utils.layout_detect import detect_layout, suggest_package_for_prefix
 from utils.mailer import send_mail
 from utils.stall_holds import release_expired_holds
 from utils.whatsapp import send_whatsapp
+from utils import whatsapp_service as wa
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -355,6 +356,17 @@ async def admin_book_stall(
         print("[admin] Failed to send booking confirmation email:", mail_err)
         await db.exhibitors.update_one({"_id": doc["_id"]}, {"$set": {"emailError": str(mail_err)}})
 
+    try:
+        result_wa = await wa.send_event(
+            db, "approval",
+            to=doc.get("whatsapp") or doc.get("phone") or "",
+            variables=[doc.get("contactPerson") or "there", stall_number_display, registration_code],
+            recipient_type="exhibitor", recipient_name=doc.get("contactPerson"),
+        )
+        await db.exhibitors.update_one({"_id": doc["_id"]}, {"$set": {"whatsappSent": bool(result_wa.get("sent")), "whatsappError": "" if result_wa.get("sent") else (result_wa.get("reason") or "")}})
+    except Exception as wa_err:  # noqa: BLE001
+        print("[admin] Failed to send booking WhatsApp message:", wa_err)
+
     updated = await db.exhibitors.find_one({"_id": doc["_id"]})
     return {"success": True, "message": f"{stall_number_display} booked for {doc['companyName']}.", "data": serialize_doc(updated)}
 
@@ -397,6 +409,15 @@ async def set_payment_status(
         raise HTTPException(status_code=404, detail="Exhibitor not found")
     status_val = "paid" if str(payload.get("paymentStatus", "")).lower() == "paid" else "unpaid"
     await db.exhibitors.update_one({"_id": oid}, {"$set": {"paymentStatus": status_val, "updatedAt": utcnow()}})
+    try:
+        await wa.send_event(
+            db, "payment_done" if status_val == "paid" else "unpaid",
+            to=exhibitor.get("whatsapp") or exhibitor.get("phone") or "",
+            variables=[exhibitor.get("contactPerson") or "there", exhibitor.get("stallNumber") or "your stall"],
+            recipient_type="exhibitor", recipient_name=exhibitor.get("contactPerson"),
+        )
+    except Exception as wa_err:  # noqa: BLE001
+        print("[admin] Failed to send payment WhatsApp message:", wa_err)
     updated = await db.exhibitors.find_one({"_id": oid})
     return {"success": True, "message": f"Marked {status_val}", "data": serialize_doc(updated)}
 
@@ -480,13 +501,11 @@ async def approve_exhibitor(
         print("[admin] Failed to send approval email:", mail_err)
 
     try:
-        stall_line = f" Your stall number is {exhibitor['stallNumber']}." if exhibitor.get("stallNumber") else ""
-        result_wa = await send_whatsapp(
+        result_wa = await wa.send_event(
+            db, "approval",
             to=exhibitor.get("whatsapp") or exhibitor["phone"],
-            caption=(
-                f"Good news! Your stall for {EVENT['eventName']} is confirmed.{stall_line} "
-                f"Registration ID: {exhibitor['registrationCode']}."
-            ),
+            variables=[exhibitor.get("contactPerson") or "there", exhibitor.get("stallNumber") or "your stall", exhibitor["registrationCode"]],
+            recipient_type="exhibitor", recipient_name=exhibitor.get("contactPerson"),
         )
         await db.exhibitors.update_one(
             {"_id": oid},
@@ -536,6 +555,16 @@ async def reject_exhibitor(
         )
     except Exception as mail_err:  # noqa: BLE001
         print("[exhibitor] Failed to send rejection email:", mail_err)
+
+    try:
+        await wa.send_event(
+            db, "rejection",
+            to=exhibitor.get("whatsapp") or exhibitor.get("phone") or "",
+            variables=[exhibitor.get("contactPerson") or "there", exhibitor.get("registrationCode") or ""],
+            recipient_type="exhibitor", recipient_name=exhibitor.get("contactPerson"),
+        )
+    except Exception as wa_err:  # noqa: BLE001
+        print("[admin] Failed to send rejection WhatsApp message:", wa_err)
 
     updated = await db.exhibitors.find_one({"_id": oid})
     return {"success": True, "message": "Exhibitor rejected, stall released and the exhibitor notified", "data": serialize_doc(updated)}
@@ -1324,3 +1353,124 @@ async def delete_admin(
 
     await db.admins.delete_one({"_id": oid})
     return {"success": True, "message": "Admin removed"}
+
+
+# ---------- WhatsApp (BhashSMS) service ----------
+
+@router.get("/whatsapp/config")
+async def whatsapp_get_config(
+    admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    cfg = await wa.get_config(db)
+    return {"success": True, "data": wa.mask_config(cfg)}
+
+
+@router.put("/whatsapp/config")
+async def whatsapp_save_config(
+    payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    cfg = await wa.save_config(db, payload or {})
+    return {"success": True, "message": "WhatsApp settings saved.", "data": wa.mask_config(cfg)}
+
+
+@router.get("/whatsapp/templates")
+async def whatsapp_list_templates(
+    admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    return {"success": True, "data": await wa.list_templates(db)}
+
+
+@router.put("/whatsapp/templates/{key}")
+async def whatsapp_update_template(
+    key: str, payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    if key not in wa.TEMPLATE_KEYS:
+        raise HTTPException(status_code=404, detail="Unknown template")
+    body = str((payload or {}).get("body") or "").strip()
+    if not body:
+        raise HTTPException(status_code=400, detail="Template body cannot be empty.")
+    enabled = bool((payload or {}).get("enabled", True))
+    data = await wa.update_template(db, key, body, enabled)
+    return {"success": True, "message": "Template saved.", "data": data}
+
+
+@router.get("/whatsapp/logs")
+async def whatsapp_logs(
+    page: int = 1, limit: int = 30,
+    admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    limit = max(1, min(limit, 100))
+    skip = max(0, (page - 1) * limit)
+    total = await db.whatsapp_logs.count_documents({})
+    rows = await db.whatsapp_logs.find().sort("createdAt", -1).skip(skip).limit(limit).to_list(length=limit)
+    return {"success": True, "data": serialize_list(rows), "total": total}
+
+
+@router.post("/whatsapp/test")
+async def whatsapp_test(
+    payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    phone = str((payload or {}).get("phone") or "").strip()
+    if not phone:
+        raise HTTPException(status_code=400, detail="Enter a phone number to test.")
+    text = str((payload or {}).get("text") or "").strip()
+    key = str((payload or {}).get("templateKey") or "").strip()
+    if not text and key:
+        tmpl = await db.whatsapp_templates.find_one({"key": key})
+        if tmpl:
+            sample = [f"Sample {v}" if "name" in v.lower() else "TEST-123" for v in tmpl.get("variables", [])]
+            text = wa.render(tmpl.get("body", ""), sample)
+    if not text:
+        text = "This is a test message from ROAR Business Expo Nagpur."
+    result = await wa.send_custom(db, to=phone, text=text, recipient_type="test", recipient_name="Test")
+    return {"success": result["sent"], "message": ("Test message sent." if result["sent"] else f"Could not send: {result.get('reason')}"), "data": result}
+
+
+@router.post("/whatsapp/broadcast")
+async def whatsapp_broadcast(
+    payload: dict = Body(...),
+    admin: AdminPayload = Depends(require_full_access), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Send a reminder or information message to a chosen audience."""
+    key = str((payload or {}).get("templateKey") or "").strip()
+    audience = str((payload or {}).get("audience") or "").strip()
+    custom_message = str((payload or {}).get("message") or "").strip()
+    if key not in ("reminder", "info_broadcast"):
+        raise HTTPException(status_code=400, detail="Broadcast supports the Reminder or Information templates.")
+    if audience not in ("visitors", "exhibitors", "confirmed_exhibitors", "pending_exhibitors", "unpaid_exhibitors", "all"):
+        raise HTTPException(status_code=400, detail="Choose a valid audience.")
+
+    recipients = []  # list of (phone, name, type)
+    if audience in ("visitors", "all"):
+        async for v in db.visitors.find({}, {"fullName": 1, "phone": 1}):
+            if v.get("phone"):
+                recipients.append((v["phone"], v.get("fullName") or "there", "visitor"))
+    if audience in ("exhibitors", "all"):
+        async for e in db.exhibitors.find({}, {"contactPerson": 1, "phone": 1, "whatsapp": 1}):
+            recipients.append((e.get("whatsapp") or e.get("phone") or "", e.get("contactPerson") or "there", "exhibitor"))
+    if audience == "confirmed_exhibitors":
+        async for e in db.exhibitors.find({"status": "confirmed"}, {"contactPerson": 1, "phone": 1, "whatsapp": 1}):
+            recipients.append((e.get("whatsapp") or e.get("phone") or "", e.get("contactPerson") or "there", "exhibitor"))
+    if audience == "pending_exhibitors":
+        async for e in db.exhibitors.find({"status": "pending"}, {"contactPerson": 1, "phone": 1, "whatsapp": 1}):
+            recipients.append((e.get("whatsapp") or e.get("phone") or "", e.get("contactPerson") or "there", "exhibitor"))
+    if audience == "unpaid_exhibitors":
+        async for e in db.exhibitors.find({"status": "confirmed", "paymentStatus": {"$ne": "paid"}}, {"contactPerson": 1, "phone": 1, "whatsapp": 1}):
+            recipients.append((e.get("whatsapp") or e.get("phone") or "", e.get("contactPerson") or "there", "exhibitor"))
+
+    recipients = [(p, n, t) for (p, n, t) in recipients if p]
+    sent = failed = 0
+    for phone, name, rtype in recipients:
+        if key == "reminder":
+            vars_ = [name, wa.event_dates_label()]
+        else:
+            vars_ = [name, custom_message or "We have an update about ROAR Business Expo Nagpur."]
+        res = await wa.send_event(db, key, to=phone, variables=vars_, recipient_type=rtype, recipient_name=name)
+        if res["sent"]:
+            sent += 1
+        else:
+            failed += 1
+    return {"success": True, "message": f"Broadcast finished: {sent} sent, {failed} failed/skipped out of {len(recipients)} recipients.", "data": {"sent": sent, "failed": failed, "total": len(recipients)}}

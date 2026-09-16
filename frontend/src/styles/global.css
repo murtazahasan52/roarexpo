@@ -1912,6 +1912,12 @@ p {
 .booking-chip button:hover { background: rgba(28,61,110,0.25); }
 .booking-select-total { font-size: 12.5px; color: var(--text-muted); margin-left: 4px; }
 
+.wa-toggle {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: 13.5px; font-weight: 600; user-select: none;
+}
+.wa-toggle input { width: 18px; height: 18px; accent-color: #1f9d55; cursor: pointer; }
+
 /* ---------- Admin (kept as a distinct, dark-accented internal tool) ---------- */
 .admin-shell {
   min-height: 100vh;

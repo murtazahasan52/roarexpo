@@ -8,6 +8,7 @@ import StallBookingPanel from "../components/StallBookingPanel";
 import ScanCheckInPanel from "../components/ScanCheckInPanel";
 import EntranceQRPanel from "../components/EntranceQRPanel";
 import EnquiriesPanel from "../components/EnquiriesPanel";
+import WhatsAppPanel from "../components/WhatsAppPanel";
 import CountUp from "../components/CountUp";
 
 async function downloadCSV(url, token, filename) {
@@ -54,6 +55,7 @@ const TAB_LABELS = {
   scan: "Scan & Check In",
   "entrance-qr": "Entrance QR",
   enquiries: "Enquiries",
+  whatsapp: "WhatsApp",
   admins: "Admins",
 };
 
@@ -74,6 +76,7 @@ function tabsForPermissions(permissions) {
   if (hasAny(permissions, "visitors", "scanning")) tabs.push("scan");
   if (hasAny(permissions, "visitors")) tabs.push("entrance-qr");
   if (hasAny(permissions, "enquiries")) tabs.push("enquiries");
+  if (hasAny(permissions, "all")) tabs.push("whatsapp");
   if (hasAny(permissions, "all")) tabs.push("admins");
   return tabs;
 }
@@ -432,6 +435,8 @@ export default function AdminDashboard() {
           <EntranceQRPanel token={token} />
         ) : tab === "enquiries" ? (
           <EnquiriesPanel token={token} onChange={loadStats} />
+        ) : tab === "whatsapp" ? (
+          <WhatsAppPanel token={token} />
         ) : (
           <>
             <div className="toolbar">

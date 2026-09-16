@@ -163,6 +163,13 @@ export const api = {
     request("/admin/stalls/apply-layout", { method: "POST", body: { series, stalls }, token }),
   adminGenerateStallsFromSeries: (token, counts = {}) =>
     request("/admin/stalls/generate-from-series", { method: "POST", body: { counts }, token }),
+  adminWaGetConfig: (token) => request("/admin/whatsapp/config", { token }),
+  adminWaSaveConfig: (token, payload) => request("/admin/whatsapp/config", { method: "PUT", body: payload, token }),
+  adminWaTemplates: (token) => request("/admin/whatsapp/templates", { token }),
+  adminWaSaveTemplate: (token, key, payload) => request(`/admin/whatsapp/templates/${key}`, { method: "PUT", body: payload, token }),
+  adminWaLogs: (token, params = "") => request(`/admin/whatsapp/logs${params}`, { token }),
+  adminWaTest: (token, payload) => request("/admin/whatsapp/test", { method: "POST", body: payload, token }),
+  adminWaBroadcast: (token, payload) => request("/admin/whatsapp/broadcast", { method: "POST", body: payload, token }),
 };
 
 export { BASE_URL };
