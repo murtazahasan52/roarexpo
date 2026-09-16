@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-20-rubysplit-vert",
+  "version": "2026-09-21-sbg-swap",
   "layoutFile": "final-layout.png",
   "source": "Designed venue artwork v2 (12 Sep 2026: stage, walkway, garden) based on MSB COLOR LAYOUT",
   "imageWidth": 2918,
@@ -60,29 +60,29 @@
       "stallNumber": "B1",
       "packageCode": "bronze",
       "size": "4m × 3m",
-      "mapX": 31.11,
-      "mapY": 29.17
+      "mapX": 30.33,
+      "mapY": 41.72
     },
     {
       "stallNumber": "B2",
       "packageCode": "bronze",
       "size": "4m × 3m",
-      "mapX": 35.01,
-      "mapY": 29.17
+      "mapX": 25.96,
+      "mapY": 41.72
     },
     {
       "stallNumber": "B3",
       "packageCode": "bronze",
       "size": "4m × 3m",
-      "mapX": 39.15,
-      "mapY": 29.11
+      "mapX": 25.94,
+      "mapY": 49.38
     },
     {
       "stallNumber": "B4",
       "packageCode": "bronze",
       "size": "4m × 3m",
-      "mapX": 43.21,
-      "mapY": 29.11
+      "mapX": 30.33,
+      "mapY": 49.38
     },
     {
       "stallNumber": "D1",
@@ -102,29 +102,29 @@
       "stallNumber": "G1",
       "packageCode": "gold",
       "size": "6m × 3m",
-      "mapX": 30.33,
-      "mapY": 41.72
+      "mapX": 31.11,
+      "mapY": 21.82
     },
     {
       "stallNumber": "G2",
       "packageCode": "gold",
       "size": "6m × 3m",
-      "mapX": 25.96,
-      "mapY": 41.72
+      "mapX": 35.01,
+      "mapY": 21.82
     },
     {
       "stallNumber": "G3",
       "packageCode": "gold",
       "size": "6m × 3m",
-      "mapX": 25.94,
-      "mapY": 49.38
+      "mapX": 31.11,
+      "mapY": 29.17
     },
     {
       "stallNumber": "G4",
       "packageCode": "gold",
       "size": "6m × 3m",
-      "mapX": 30.33,
-      "mapY": 49.38
+      "mapX": 35.01,
+      "mapY": 29.17
     },
     {
       "stallNumber": "X1",
@@ -1117,29 +1117,29 @@
       "stallNumber": "S1",
       "packageCode": "silver",
       "size": "4m × 3m",
-      "mapX": 43.21,
+      "mapX": 39.18,
       "mapY": 21.82
     },
     {
       "stallNumber": "S2",
       "packageCode": "silver",
       "size": "4m × 3m",
-      "mapX": 39.18,
+      "mapX": 43.21,
       "mapY": 21.82
     },
     {
       "stallNumber": "S3",
       "packageCode": "silver",
       "size": "4m × 3m",
-      "mapX": 35.01,
-      "mapY": 21.82
+      "mapX": 39.15,
+      "mapY": 29.11
     },
     {
       "stallNumber": "S4",
       "packageCode": "silver",
       "size": "4m × 3m",
-      "mapX": 31.11,
-      "mapY": 21.82
+      "mapX": 43.21,
+      "mapY": 29.11
     },
     {
       "stallNumber": "T1",
