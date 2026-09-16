@@ -139,10 +139,19 @@ function TemplatesTab({ token }) {
   async function save(t) {
     setSavingKey(t.key); setMsg("");
     try {
-      await api.adminWaSaveTemplate(token, t.key, { body: t.body, enabled: t.enabled });
+      await api.adminWaSaveTemplate(token, t.key, { body: t.body, enabled: t.enabled, templateName: t.templateName || "" });
       setMsg(`Saved "${t.label}".`);
     } catch (e) { setMsg(e.message || "Could not save."); }
     finally { setSavingKey(""); }
+  }
+
+  async function testOne(t) {
+    const phone = window.prompt(`Send a test "${t.label}" WhatsApp to which number? (10-digit)`);
+    if (!phone) return;
+    try {
+      const r = await api.adminWaTest(token, { phone: phone.trim(), templateKey: t.key });
+      setMsg(r.message || (r.success ? "Test sent." : "Test failed."));
+    } catch (e) { setMsg(e.message || "Test failed."); }
   }
 
   return (
@@ -167,8 +176,13 @@ function TemplatesTab({ token }) {
             <div style={{ fontSize: 12, color: "var(--text-muted)", margin: "8px 0" }}>
               Variables: {t.variables.map((v, i) => `{{${i + 1}}} = ${v}`).join("  ·  ")}
             </div>
+            <div className="field" style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12.5 }}>DLT Template Name <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(the BhashSMS/WhatsApp-approved name — leave blank to send full text)</span></label>
+              <input value={t.templateName || ""} onChange={(e) => edit(t.key, "templateName", e.target.value)} placeholder="e.g. roar_visitor_registration" data-testid={`wa-template-name-${t.key}`} autoComplete="off" />
+            </div>
             <textarea value={t.body} onChange={(e) => edit(t.key, "body", e.target.value)} rows={3} style={{ width: "100%" }} data-testid={`wa-template-body-${t.key}`} />
-            <div style={{ textAlign: "right", marginTop: 8 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+              <button className="btn btn-outline" onClick={() => testOne(t)} data-testid={`wa-template-test-${t.key}`}>Send Test</button>
               <button className="btn btn-primary" onClick={() => save(t)} disabled={savingKey === t.key} data-testid={`wa-template-save-${t.key}`}>
                 {savingKey === t.key ? "Saving…" : "Save"}
               </button>

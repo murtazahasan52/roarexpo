@@ -1392,7 +1392,8 @@ async def whatsapp_update_template(
     if not body:
         raise HTTPException(status_code=400, detail="Template body cannot be empty.")
     enabled = bool((payload or {}).get("enabled", True))
-    data = await wa.update_template(db, key, body, enabled)
+    template_name = (payload or {}).get("templateName")
+    data = await wa.update_template(db, key, body, enabled, template_name)
     return {"success": True, "message": "Template saved.", "data": data}
 
 
@@ -1418,11 +1419,14 @@ async def whatsapp_test(
         raise HTTPException(status_code=400, detail="Enter a phone number to test.")
     text = str((payload or {}).get("text") or "").strip()
     key = str((payload or {}).get("templateKey") or "").strip()
-    if not text and key:
+    # If a real template is chosen, send it through the DLT path (template name +
+    # sample variables) so the test matches how live messages go out.
+    if key and not text:
         tmpl = await db.whatsapp_templates.find_one({"key": key})
         if tmpl:
             sample = [f"Sample {v}" if "name" in v.lower() else "TEST-123" for v in tmpl.get("variables", [])]
-            text = wa.render(tmpl.get("body", ""), sample)
+            result = await wa.send_event(db, key, to=phone, variables=sample, recipient_type="test", recipient_name="Test")
+            return {"success": result["sent"], "message": ("Test message sent." if result["sent"] else f"Could not send: {result.get('reason')}"), "data": result}
     if not text:
         text = "This is a test message from ROAR Business Expo Nagpur."
     result = await wa.send_custom(db, to=phone, text=text, recipient_type="test", recipient_name="Test")

@@ -21,6 +21,7 @@ touched) — pass replace_unplaced=False to keep them.
 import json
 import os
 import pathlib
+import re
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -40,12 +41,23 @@ def load_layout() -> dict:
     return json.loads(LAYOUT_JSON.read_text(encoding="utf-8"))
 
 
-def publish_image() -> str:
-    """Upload the bundled drawing to Emergent object storage and return the
-    stable /uploads URL (served back from object storage by server.py).
-    Idempotent: overwrites the same object key each time."""
-    put_object(storage_path("stall-maps", DEST_FILENAME), LAYOUT_IMAGE.read_bytes(), "image/png")
-    return f"/uploads/stall-maps/{DEST_FILENAME}"
+def _versioned_filename() -> str:
+    """A version-specific image name so the production CDN treats each map
+    update as a new resource (no stale cached artwork after a deploy)."""
+    version = load_layout().get("version", "") or "v1"
+    safe = re.sub(r"[^a-zA-Z0-9]+", "-", version).strip("-") or "v1"
+    return f"final-layout-{safe}.png"
+
+
+def publish_image() -> tuple[str, str]:
+    """Upload the bundled drawing to Emergent object storage under a
+    version-specific key (cache-busting) and also under the stable key for any
+    older links. Returns (filename, url). Idempotent."""
+    data = LAYOUT_IMAGE.read_bytes()
+    fname = _versioned_filename()
+    put_object(storage_path("stall-maps", fname), data, "image/png")
+    put_object(storage_path("stall-maps", DEST_FILENAME), data, "image/png")
+    return fname, f"/uploads/stall-maps/{fname}"
 
 
 async def ensure_final_layout(db: AsyncIOMotorDatabase) -> dict | None:
@@ -77,9 +89,9 @@ async def apply_final_layout(db: AsyncIOMotorDatabase, *, replace_unplaced: bool
         raise FileNotFoundError(f"Bundled layout image missing: {LAYOUT_IMAGE}")
 
     # 1. Publish the drawing as the current map (a fresh copy under uploads/).
-    url = publish_image()
+    fname, url = publish_image()
     doc = new_stall_map_document(
-        DEST_FILENAME, url, source_type="image", original_filename="final-layout.png", series=layout["series"],
+        fname, url, source_type="image", original_filename="final-layout.png", series=layout["series"],
     )
     doc["detection"] = {"status": "done", "applied": True, "bundled": True, "bundledVersion": layout.get("version", ""),
                         "finishedAt": utcnow(), "boxes": [], "rows": [], "prefixes": [], "ocrEngine": "bundled"}

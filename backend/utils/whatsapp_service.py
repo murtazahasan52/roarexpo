@@ -146,9 +146,11 @@ async def ensure_templates(db: AsyncIOMotorDatabase) -> None:
         if not existing:
             await db.whatsapp_templates.insert_one({
                 "key": t["key"], "label": t["label"], "description": t["description"],
-                "variables": t["variables"], "body": t["body"], "enabled": True,
-                "createdAt": utcnow(), "updatedAt": utcnow(),
+                "variables": t["variables"], "body": t["body"], "templateName": t.get("templateName", ""),
+                "enabled": True, "createdAt": utcnow(), "updatedAt": utcnow(),
             })
+        elif "templateName" not in existing:
+            await db.whatsapp_templates.update_one({"key": t["key"]}, {"$set": {"templateName": ""}})
 
 
 async def list_templates(db: AsyncIOMotorDatabase) -> list:
@@ -159,11 +161,13 @@ async def list_templates(db: AsyncIOMotorDatabase) -> list:
     return serialize_list(rows)
 
 
-async def update_template(db: AsyncIOMotorDatabase, key: str, body: str, enabled: bool) -> dict:
+async def update_template(db: AsyncIOMotorDatabase, key: str, body: str, enabled: bool,
+                          template_name: str | None = None) -> dict:
     await ensure_templates(db)
-    await db.whatsapp_templates.update_one(
-        {"key": key}, {"$set": {"body": body, "enabled": bool(enabled), "updatedAt": utcnow()}}
-    )
+    changes = {"body": body, "enabled": bool(enabled), "updatedAt": utcnow()}
+    if template_name is not None:
+        changes["templateName"] = template_name.strip()
+    await db.whatsapp_templates.update_one({"key": key}, {"$set": changes})
     return serialize_doc(await db.whatsapp_templates.find_one({"key": key}))
 
 
@@ -186,8 +190,11 @@ async def _log(db, *, to, template_key, text, status, reason, provider_response,
     })
 
 
-async def _send_bhash(cfg: dict, phone: str, text: str, media_url: str | None) -> dict:
-    """Fire the BhashSMS legacy GET request. Returns {sent, reason, raw}."""
+async def _send_bhash(cfg: dict, phone: str, text: str, media_url: str | None,
+                      params_list: list | None = None) -> dict:
+    """Fire the BhashSMS legacy GET request. `text` is either the full message
+    (plain mode) or the DLT template name (template mode); in template mode the
+    variable values are passed comma-separated in `Params`. Returns {sent, reason, raw}."""
     if not cfg.get("bhashUser") or not cfg.get("bhashPassword"):
         return {"sent": False, "reason": "missing_credentials", "raw": ""}
     params = {
@@ -195,6 +202,9 @@ async def _send_bhash(cfg: dict, phone: str, text: str, media_url: str | None) -
         "phone": phone, "text": text, "priority": cfg.get("priority") or "wa",
         "stype": cfg.get("stype") or "normal",
     }
+    if params_list:
+        # BhashSMS DLT WhatsApp: variable values, comma-separated, in order.
+        params["Params"] = ",".join(str(v).replace(",", " ") for v in params_list)
     if media_url:
         params["htype"] = "image"
         params["url"] = media_url
@@ -234,6 +244,7 @@ async def send_event(db: AsyncIOMotorDatabase, key: str, *, to: str, variables: 
         return {"sent": False, "reason": "template_missing"}
 
     text = render(tmpl.get("body", ""), variables)
+    tmpl_name = (tmpl.get("templateName") or "").strip()
 
     if not cfg.get("enabled"):
         await _log(db, to=phone, template_key=key, text=text, status="skipped",
@@ -246,7 +257,12 @@ async def send_event(db: AsyncIOMotorDatabase, key: str, *, to: str, variables: 
                    recipient_type=recipient_type, recipient_name=recipient_name)
         return {"sent": False, "reason": "template_disabled"}
 
-    result = await _send_bhash(cfg, phone, text, media_url)
+    # DLT template mode: send the approved template NAME + variable values.
+    # Plain mode (no template name set yet): send the rendered message text.
+    if tmpl_name:
+        result = await _send_bhash(cfg, phone, tmpl_name, media_url, params_list=[str(v) for v in (variables or [])])
+    else:
+        result = await _send_bhash(cfg, phone, text, media_url)
     await _log(db, to=phone, template_key=key, text=text,
                status="sent" if result["sent"] else "failed",
                reason=result.get("reason"), provider_response=result.get("raw"),
