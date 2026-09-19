@@ -4,7 +4,7 @@ export const fallbackConfig = {
   eventName: "ROAR — Business Expo Nagpur",
   eventCity: "Nagpur",
   eventTagline: "RISE • OPPORTUNITY • AMBITION • REACH",
-  eventDatesLabel: "8 – 10 January 2027",
+  eventDatesLabel: "8th to 10th January 2027",
   eventStartDateISO: "2027-01-08",
   eventEndDateISO: "2027-01-10",
   venueName: "MSB Ground, Nagpur",

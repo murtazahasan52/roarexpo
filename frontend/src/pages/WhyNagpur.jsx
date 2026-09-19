@@ -122,7 +122,7 @@ function HubGraphic() {
 export default function WhyNagpur() {
   const { config } = useEventConfig();
   const hijri = config.eventDatesHijri || "1st – 3rd Shaban ul Karim 1448H";
-  const dates = config.eventDatesLabel || "8 – 10 January 2027";
+  const dates = config.eventDatesLabel || "8th to 10th January 2027";
 
   return (
     <>
