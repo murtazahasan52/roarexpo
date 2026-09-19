@@ -5,6 +5,7 @@ import Icon from "./Icon";
 const links = [
   { to: "/", label: "Home", end: true },
   { to: "/#about", label: "About" },
+  { to: "/why-nagpur", label: "Why Nagpur" },
   { to: "/#categories", label: "Categories" },
   { to: "/stalls", label: "Stalls" },
   { to: "/contact", label: "Contact" },
@@ -51,10 +52,12 @@ export default function Navbar() {
             Enquiry
           </NavLink>
           <NavLink to="/register/visitor" className="btn btn-outline">
-            Register as Visitor
+            <span className="cta-long">Register as Visitor</span>
+            <span className="cta-short">Visit</span>
           </NavLink>
           <NavLink to="/register/exhibitor" className="btn btn-primary">
-            Register as Exhibitor
+            <span className="cta-long">Register as Exhibitor</span>
+            <span className="cta-short">Exhibit</span>
           </NavLink>
         </div>
 

@@ -9,6 +9,7 @@ import { api } from "./api";
 import PublicLayout from "./layouts/PublicLayout";
 import Home from "./pages/Home";
 import Contact from "./pages/Contact";
+import WhyNagpur from "./pages/WhyNagpur";
 import Enquiry from "./pages/Enquiry";
 import StallDirectory from "./pages/StallDirectory";
 import StallRegistration from "./pages/StallRegistration";
@@ -47,6 +48,7 @@ export default function App() {
         <Routes>
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
+            <Route path="/why-nagpur" element={<WhyNagpur />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/enquiry" element={<Enquiry />} />
             <Route path="/stalls" element={<StallDirectory />} />

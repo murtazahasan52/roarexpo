@@ -27,6 +27,9 @@ export default function Footer() {
                 <Link to="/#about">About the Expo</Link>
               </li>
               <li>
+                <Link to="/why-nagpur">Why Nagpur</Link>
+              </li>
+              <li>
                 <Link to="/#categories">Expo Categories</Link>
               </li>
               <li>

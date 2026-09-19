@@ -416,13 +416,40 @@ p {
   font-size: 14px;
 }
 
-@media (max-width: 1120px) {
+/* Laptop widths: tighter links and buttons, then short button labels, then a
+   compact brand — so six nav links and three buttons never overflow the bar. */
+.nav-cta .cta-short {
+  display: none;
+}
+
+@media (max-width: 1400px) {
   .nav-links {
     gap: 18px;
   }
   .nav-cta .btn {
     padding: 10px 14px;
     font-size: 13px;
+  }
+}
+
+@media (max-width: 1240px) {
+  .nav-cta .cta-long {
+    display: none;
+  }
+  .nav-cta .cta-short {
+    display: inline;
+  }
+}
+
+@media (max-width: 1060px) and (min-width: 901px) {
+  .nav-links {
+    gap: 12px;
+  }
+  .nav-links a {
+    font-size: 13.5px;
+  }
+  .brand-sub {
+    display: none;
   }
 }
 
@@ -3007,3 +3034,236 @@ a.btn {
 .row-menu-item:hover { background: var(--surface-soft, #f6f4ef); }
 .row-menu-item:disabled { opacity: 0.5; cursor: default; }
 .row-menu-danger { color: var(--rose-500, #e11d48); }
+
+/* ---------- Why Nagpur page ---------- */
+.why-hero {
+  background: linear-gradient(180deg, #fffaf0 0%, #fdf5e8 60%, var(--bg-page) 100%);
+  padding: 64px 0 60px;
+}
+
+.why-hero-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 52px;
+  align-items: center;
+}
+
+.why-hero h1 {
+  font-size: clamp(34px, 4.4vw, 54px);
+  margin-bottom: 18px;
+}
+
+.why-hero h1 em {
+  font-style: normal;
+  color: var(--gold-700);
+}
+
+.why-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0 26px;
+}
+
+.why-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-heading);
+  box-shadow: 0 4px 14px rgba(12, 26, 51, 0.05);
+}
+
+.why-chip svg {
+  width: 16px;
+  height: 16px;
+  color: var(--gold-700);
+  flex: none;
+}
+
+.why-photo {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lift);
+  aspect-ratio: 4 / 5;
+  background: var(--bg-cream);
+}
+
+.why-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.why-photo-caption {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(7, 15, 33, 0.78);
+  color: #fff;
+  font-size: 13.5px;
+  line-height: 1.45;
+  backdrop-filter: blur(6px);
+}
+
+.why-photo-caption strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold-400);
+}
+
+.why-hub-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 52px;
+  align-items: center;
+}
+
+.why-hub {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.why-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.why-list li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.why-list li svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 3px;
+  color: var(--gold-700);
+}
+
+.why-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+.why-side-card {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.why-side-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.why-side-head .icon-badge,
+.why-fact .icon-badge {
+  margin: 0;
+  width: 48px;
+  height: 48px;
+  flex: none;
+}
+
+.why-side-head .icon-badge svg,
+.why-fact .icon-badge svg {
+  width: 22px;
+  height: 22px;
+}
+
+.why-side-head h3 {
+  margin: 0;
+}
+
+.why-photo-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.why-photo-strip img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.why-venue {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 28px;
+  align-items: stretch;
+}
+
+.why-venue-facts {
+  display: grid;
+  gap: 16px;
+}
+
+.why-fact {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  font-size: 14.5px;
+  color: var(--text-muted);
+}
+
+.why-fact strong {
+  display: block;
+  color: var(--text-heading);
+  font-size: 15.5px;
+}
+
+.why-fact a {
+  color: var(--gold-700);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .why-hero-grid,
+  .why-hub-grid,
+  .why-two,
+  .why-venue {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .why-photo {
+    aspect-ratio: 4 / 3;
+  }
+  .why-hero {
+    padding: 44px 0 40px;
+  }
+}
+
+@media (max-width: 560px) {
+  .why-photo-strip {
+    grid-template-columns: 1fr;
+  }
+}
