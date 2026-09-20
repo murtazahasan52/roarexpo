@@ -12,7 +12,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 // wrapper that holds the image (its onClick / onMouseLeave still see the
 // same element, so click-to-place maths keep working).
 const ZOOM_STEPS = [1, 1.5, 2, 2.5, 3, 4];
-const MIN_READABLE_WIDTH = 900; // px — the drawing opens at least this wide so labels are legible
+const MIN_READABLE_WIDTH = 1800; // px — the drawing opens at least this wide so the coloured stall blocks are clearly visible (scroll/drag to move around)
 
 export default function ZoomableMap({ src, alt, imgClassName = "map-picker-img", wrapClassName = "map-picker-wrap", wrapProps = {}, children, maxHeight = "72vh", hint }) {
   const scrollerRef = useRef(null);
