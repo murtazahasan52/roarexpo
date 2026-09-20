@@ -1568,31 +1568,34 @@ p {
 .map-marker {
   position: absolute;
   transform: translate(-50%, -50%);
-  width: 14px;
-  height: 14px;
-  min-width: 0;
-  padding: 0;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.9);
-  font-size: 0;               /* number is printed on the map + shown in the tooltip */
-  color: transparent;
+  min-width: 34px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 5px;
+  border: 1.5px solid transparent;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 23px;
   text-align: center;
+  color: #fff;
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
-  box-shadow: 0 1px 3px rgba(16, 28, 51, 0.45);
+  box-shadow: 0 1px 3px rgba(16, 28, 51, 0.4);
   white-space: nowrap;
   touch-action: manipulation;
 }
 
 @media (max-width: 480px) {
   .map-marker {
-    width: 16px;
-    height: 16px;
+    min-width: 38px;
+    height: 28px;
+    line-height: 25px;
+    font-size: 12.5px;
   }
 }
 
 .map-marker:hover {
-  transform: translate(-50%, -50%) scale(1.6);
+  transform: translate(-50%, -50%) scale(1.25);
   z-index: 2;
 }
 
@@ -1610,7 +1613,7 @@ p {
 }
 
 .map-marker.status-held:hover {
-  transform: translate(-50%, -50%) scale(1.6);
+  transform: translate(-50%, -50%) scale(1.25);
 }
 
 .map-marker.status-booked {
@@ -1621,7 +1624,7 @@ p {
 }
 
 .map-marker.status-booked:hover {
-  transform: translate(-50%, -50%) scale(1.6);
+  transform: translate(-50%, -50%) scale(1.25);
 }
 
 .map-marker.status-blocked {
@@ -1633,7 +1636,7 @@ p {
 }
 
 .map-marker.status-blocked:hover {
-  transform: translate(-50%, -50%) scale(1.6);
+  transform: translate(-50%, -50%) scale(1.25);
 }
 
 .map-marker.admin-only {
@@ -1645,13 +1648,14 @@ p {
 }
 
 .map-marker.admin-only:hover {
-  transform: translate(-50%, -50%) scale(1.6);
+  transform: translate(-50%, -50%) scale(1.25);
 }
 
 
 .map-marker.selected {
-  box-shadow: 0 0 0 3px var(--navy-900), 0 1px 3px rgba(16, 28, 51, 0.45);
-  transform: translate(-50%, -50%) scale(1.5);
+  outline: 3px solid var(--navy-900);
+  outline-offset: 1px;
+  transform: translate(-50%, -50%) scale(1.15);
   z-index: 3;
 }
 
