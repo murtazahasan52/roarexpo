@@ -419,7 +419,7 @@ export default function StallRegistration() {
   const selectedStall = categoryStalls.find((s) => s.stallNumber === form.stallNumber);
   const placeableStalls = categoryStalls.filter((s) => s.mapX != null && s.mapY != null);
   const otherCategoryStalls = allStalls.filter((s) => s.packageCode !== form.stallPackage);
-  const availableInCategory = placeableStalls.filter((s) => s.status === "available");
+  const availableInCategory = placeableStalls.filter((s) => s.status === "available" && !s.adminOnly);
 
   function formatRate(n) {
     return `₹${Number(n).toLocaleString("en-IN")}`;
@@ -430,6 +430,7 @@ export default function StallRegistration() {
   }
 
   function stallStatusLabel(stall) {
+    if (stall.adminOnly) return "Organizer allotment only";
     if (stall.status === "available") return formatRate(stall.rate);
     if (stall.status === "held") return "Pending confirmation";
     if (stall.status === "booked") return "Booked";
@@ -705,6 +706,15 @@ export default function StallRegistration() {
               </div>
             )}
 
+            {!isAdminOnly && selectedPackage?.eligibility && (
+              <div className="field">
+                <div className="alert" data-testid="eligibility-notice" style={{ background: "#fff4f6", color: "#8a1c3b", border: "1px solid #f6cdd8", display: "flex", gap: 8, alignItems: "flex-start" }}>
+                  <Icon name="flower" size={16} />
+                  <span style={{ fontSize: 13 }}>{selectedPackage.eligibility}</span>
+                </div>
+              </div>
+            )}
+
             {!isAdminOnly && stallMapUrl && (
               <div className="field">
                 <label>Venue Stall Map {stallsLoading && "(loading stalls…)"}</label>
@@ -746,11 +756,11 @@ export default function StallRegistration() {
                           </div>
                         ))}
                         {placeableStalls.map((s) => {
-                          const selectable = s.status === "available" || (hold && hold.stallNumber === s.stallNumber);
+                          const selectable = (s.status === "available" || (hold && hold.stallNumber === s.stallNumber)) && !s.adminOnly;
                           return (
                             <div
                               key={s.stallNumber}
-                              className={`map-marker status-${s.status} ${
+                              className={`map-marker status-${s.status} ${s.adminOnly ? "admin-only" : ""} ${
                                 form.stallNumber === s.stallNumber ? "selected" : ""
                               } ${hover === s.stallNumber ? "is-hover" : ""}`}
                               style={{ left: `${s.mapX}%`, top: `${s.mapY}%` }}
@@ -796,6 +806,7 @@ export default function StallRegistration() {
                           hover && placeableStalls.some((s) => s.stallNumber === hover)
                             ? (() => {
                                 const st = placeableStalls.find((s) => s.stallNumber === hover);
+                                if (st.adminOnly) return "Organizer allotment only — contact the team to book";
                                 return st.status === "available" ? `${formatRate(st.rate)} — tap to select` : null;
                               })()
                             : hover

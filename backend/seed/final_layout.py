@@ -105,17 +105,19 @@ async def apply_final_layout(db: AsyncIOMotorDatabase, *, replace_unplaced: bool
         wanted.add(number)
         pkg = find_stall_package(s["packageCode"]) or {}
         size = f"{pkg.get('label', s['packageCode'])} · {s['size']}" if s.get("size") else pkg.get("label", "")
+        admin_only = bool(s.get("adminOnly"))
         existing = await db.stalls.find_one({"stallNumber": number})
         if existing:
             await db.stalls.update_one(
                 {"_id": existing["_id"]},
                 {"$set": {"packageCode": s["packageCode"], "size": size, "rate": pkg.get("rate") or 0,
+                          "adminOnly": admin_only,
                           "mapX": s["mapX"], "mapY": s["mapY"],
                           "updatedAt": utcnow()}},
             )
             updated.append(number)
         else:
-            stall = new_stall_document(number, s["packageCode"], pkg.get("rate") or 0, size)
+            stall = new_stall_document(number, s["packageCode"], pkg.get("rate") or 0, size, admin_only)
             stall["mapX"], stall["mapY"] = s["mapX"], s["mapY"]
             await db.stalls.insert_one(stall)
             created.append(number)

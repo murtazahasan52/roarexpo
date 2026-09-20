@@ -1638,6 +1638,19 @@ p {
   transform: translate(-50%, -50%);
 }
 
+.map-marker.admin-only {
+  background: #7c5cff;
+  border-color: #4b2ea8;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 0.92;
+}
+
+.map-marker.admin-only:hover {
+  transform: translate(-50%, -50%);
+}
+
+
 .map-marker.selected {
   outline: 3px solid var(--navy-900);
   outline-offset: 1px;

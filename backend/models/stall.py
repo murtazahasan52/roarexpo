@@ -30,13 +30,14 @@ class StallUpdateRequest(BaseModel):
     # kept here for documentation/typing reference only.
 
 
-def new_stall_document(stall_number: str, package_code: str, rate: float, size: str = "") -> dict:
+def new_stall_document(stall_number: str, package_code: str, rate: float, size: str = "", admin_only: bool = False) -> dict:
     now = utcnow()
     return {
         "stallNumber": stall_number.strip().upper(),
         "packageCode": package_code.strip(),
         "size": size or "",
         "rate": rate,
+        "adminOnly": bool(admin_only),
         "status": "available",
         "heldBy": None,
         "bookedBy": None,

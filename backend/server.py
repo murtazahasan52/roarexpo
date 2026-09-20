@@ -43,6 +43,12 @@ async def lifespan(app: FastAPI):
         await ensure_final_layout(db)
     except Exception as err:  # noqa: BLE001 — never block start-up on this
         print("[layout] could not auto-publish the bundled layout:", err)
+    # Stage 3: one-time migration of existing bookings onto the 2027 plan.
+    try:
+        from seed.migrate_bookings import migrate_bookings as _migrate_bookings
+        await _migrate_bookings(db)
+    except Exception as err:  # noqa: BLE001 — never block start-up on this
+        print("[migrate] booking migration failed:", err)
     # A fresh database gets its owner admin from ADMIN_EMAIL / ADMIN_PASSWORD.
     try:
         await ensure_owner_admin(db)

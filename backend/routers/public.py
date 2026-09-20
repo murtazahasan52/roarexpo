@@ -35,7 +35,7 @@ async def get_config():
 @router.get("/stalls")
 async def list_stalls_for_package(packageCode: str | None = None, db: AsyncIOMotorDatabase = Depends(get_db)):
     await release_expired_holds(db)
-    projection = {"stallNumber": 1, "packageCode": 1, "size": 1, "rate": 1, "status": 1, "mapX": 1, "mapY": 1}
+    projection = {"stallNumber": 1, "packageCode": 1, "size": 1, "rate": 1, "status": 1, "adminOnly": 1, "mapX": 1, "mapY": 1}
     query = {"packageCode": packageCode} if packageCode else {}
     cursor = db.stalls.find(query, projection).sort("stallNumber", 1)
     stalls = await cursor.to_list(length=None)
@@ -65,7 +65,7 @@ async def stall_directory(db: AsyncIOMotorDatabase = Depends(get_db)):
         owner = owners.get(s.get("bookedBy")) if s.get("status") == "booked" else None
         data.append({
             "id": str(s["_id"]), "stallNumber": s["stallNumber"], "packageCode": s["packageCode"],
-            "status": s["status"], "mapX": s["mapX"], "mapY": s["mapY"], "owner": owner,
+            "status": s["status"], "adminOnly": bool(s.get("adminOnly")), "mapX": s["mapX"], "mapY": s["mapY"], "owner": owner,
         })
     return {"success": True, "data": data}
 

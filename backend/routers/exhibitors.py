@@ -127,6 +127,12 @@ async def register_exhibitor(
             if not stall:
                 raise HTTPException(status_code=404, detail="That stall could not be found. Please pick another.")
             mine = bool(holdToken) and stall.get("tempHoldToken") == holdToken and stall.get("heldBy") is None
+            if stall.get("adminOnly"):
+                contact = EVENT.get("contact", {})
+                raise HTTPException(status_code=403, detail=(
+                    f"Stall {stall['stallNumber']} is allotted by the organizing team and can't be booked online. "
+                    f"Please contact us on WhatsApp {contact.get('whatsapp', '')} or email {contact.get('email', '')}."
+                ))
             if stall["status"] != "available" and not (stall["status"] == "held" and mine):
                 raise HTTPException(
                     status_code=409,
