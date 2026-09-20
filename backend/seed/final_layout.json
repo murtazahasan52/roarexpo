@@ -1,7 +1,7 @@
 {
-  "version": "2027-01-newpdf-v3-zones",
-  "imageWidth": 2450,
-  "imageHeight": 940,
+  "version": "2027-01-newpdf-v4-beauty",
+  "imageWidth": 3012,
+  "imageHeight": 1360,
   "series": [
     {
       "prefix": "T",
@@ -58,1084 +58,1084 @@
   "zones": [
     {
       "label": "STAGE",
-      "x": 4.78,
-      "y": 37.23,
-      "w": 7.59,
-      "h": 69.36
+      "x": 10.69,
+      "y": 50.15,
+      "w": 13.28,
+      "h": 44.26
     },
     {
       "label": "PLAY ZONE",
-      "x": 32.16,
-      "y": 87.13,
-      "w": 44.24,
-      "h": 19.36
+      "x": 39.26,
+      "y": 77.79,
+      "w": 36.02,
+      "h": 20.59
     },
     {
       "label": "FOOD COURT",
-      "x": 77.63,
-      "y": 87.13,
-      "w": 44.24,
-      "h": 19.36
+      "x": 76.61,
+      "y": 77.79,
+      "w": 36.02,
+      "h": 20.59
     }
   ],
   "notes": [
-    "New 2027 floor plan. 148 numbered stalls. RU1-RU13 public, RU14-RU32 admin-only. BZ1/GS1 excluded. STAGE on the left, PLAY ZONE + FOOD COURT band below the grid."
+    "Beautified 2027 floor plan (AI-decorated). 148 numbered stalls, grid & pin mapping unchanged. RU1-RU13 public, RU14-RU32 admin-only. BZ1/GS1 excluded. Greenery border, illustrated STAGE on the left, PLAY ZONE + FOOD COURT illustrations in the hall."
   ],
   "stalls": [
     {
       "stallNumber": "T1",
       "packageCode": "title",
       "size": "3m \u00d7 8m",
-      "mapX": 15.88,
-      "mapY": 4.89
+      "mapX": 26.2,
+      "mapY": 15.59
     },
     {
       "stallNumber": "T2",
       "packageCode": "title",
       "size": "4m \u00d7 6m",
-      "mapX": 14.08,
-      "mapY": 25.21
+      "mapX": 24.73,
+      "mapY": 29.63
     },
     {
       "stallNumber": "D1",
       "packageCode": "diamond",
       "size": "3m \u00d7 6m",
-      "mapX": 24.51,
-      "mapY": 4.89
+      "mapX": 33.22,
+      "mapY": 15.59
     },
     {
       "stallNumber": "D2",
       "packageCode": "diamond",
       "size": "3m \u00d7 6m",
-      "mapX": 20.78,
-      "mapY": 21.65
+      "mapX": 30.18,
+      "mapY": 27.17
     },
     {
       "stallNumber": "G1",
       "packageCode": "gold",
       "size": "3m \u00d7 5m",
-      "mapX": 31.53,
-      "mapY": 4.89
+      "mapX": 38.93,
+      "mapY": 15.59
     },
     {
       "stallNumber": "G2",
       "packageCode": "gold",
       "size": "3m \u00d7 5m",
-      "mapX": 49.45,
-      "mapY": 4.95
+      "mapX": 53.5,
+      "mapY": 15.62
     },
     {
       "stallNumber": "G3",
       "packageCode": "gold",
       "size": "3m \u00d7 5m",
-      "mapX": 45.65,
-      "mapY": 21.7
+      "mapX": 50.42,
+      "mapY": 27.21
     },
     {
       "stallNumber": "G4",
       "packageCode": "gold",
       "size": "3m \u00d7 5m",
-      "mapX": 27.82,
-      "mapY": 21.65
+      "mapX": 35.91,
+      "mapY": 27.17
     },
     {
       "stallNumber": "S1",
       "packageCode": "silver",
       "size": "3m \u00d7 4m",
-      "mapX": 37.63,
-      "mapY": 4.89
+      "mapX": 43.89,
+      "mapY": 15.59
     },
     {
       "stallNumber": "S2",
       "packageCode": "silver",
       "size": "3m \u00d7 4m",
-      "mapX": 43.31,
-      "mapY": 4.95
+      "mapX": 48.51,
+      "mapY": 15.62
     },
     {
       "stallNumber": "S3",
       "packageCode": "silver",
       "size": "3m \u00d7 4m",
-      "mapX": 39.53,
-      "mapY": 21.7
+      "mapX": 45.43,
+      "mapY": 27.21
     },
     {
       "stallNumber": "S4",
       "packageCode": "silver",
       "size": "3m \u00d7 4m",
-      "mapX": 33.9,
-      "mapY": 21.65
+      "mapX": 40.85,
+      "mapY": 27.17
     },
     {
       "stallNumber": "PP1",
       "packageCode": "premium-corner",
       "size": "3m \u00d7 4m",
-      "mapX": 55.51,
-      "mapY": 4.89
+      "mapX": 58.43,
+      "mapY": 15.59
     },
     {
       "stallNumber": "PP2",
       "packageCode": "premium-corner",
       "size": "3m \u00d7 4m",
-      "mapX": 93.14,
-      "mapY": 4.89
+      "mapX": 89.04,
+      "mapY": 15.59
     },
     {
       "stallNumber": "PP3",
       "packageCode": "premium-corner",
       "size": "3m \u00d7 4m",
-      "mapX": 93.14,
-      "mapY": 21.7
+      "mapX": 89.04,
+      "mapY": 27.21
     },
     {
       "stallNumber": "PP4",
       "packageCode": "premium-corner",
       "size": "3m \u00d7 4m",
-      "mapX": 51.78,
-      "mapY": 21.65
+      "mapX": 55.4,
+      "mapY": 27.17
     },
     {
       "stallNumber": "PP5",
       "packageCode": "premium-corner",
       "size": "3m \u00d7 4m",
-      "mapX": 19.84,
-      "mapY": 28.72
+      "mapX": 29.42,
+      "mapY": 32.06
     },
     {
       "stallNumber": "PP6",
       "packageCode": "premium-corner-15",
       "size": "3m \u00d7 5m",
-      "mapX": 98.31,
-      "mapY": 54.89
+      "mapX": 93.24,
+      "mapY": 50.15
     },
     {
       "stallNumber": "PP7",
       "packageCode": "premium-corner-15",
       "size": "3m \u00d7 5m",
-      "mapX": 98.29,
-      "mapY": 66.86
+      "mapX": 93.23,
+      "mapY": 58.42
     },
     {
       "stallNumber": "P1",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 59.29,
-      "mapY": 4.79
+      "mapX": 61.5,
+      "mapY": 15.51
     },
     {
       "stallNumber": "P2",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 63.06,
-      "mapY": 4.84
+      "mapX": 64.58,
+      "mapY": 15.55
     },
     {
       "stallNumber": "P3",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 66.82,
-      "mapY": 4.84
+      "mapX": 67.63,
+      "mapY": 15.55
     },
     {
       "stallNumber": "P4",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 70.59,
-      "mapY": 4.84
+      "mapX": 70.7,
+      "mapY": 15.55
     },
     {
       "stallNumber": "P5",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 74.35,
-      "mapY": 4.84
+      "mapX": 73.75,
+      "mapY": 15.55
     },
     {
       "stallNumber": "P6",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 78.12,
-      "mapY": 4.79
+      "mapX": 76.83,
+      "mapY": 15.51
     },
     {
       "stallNumber": "P7",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 81.86,
-      "mapY": 4.84
+      "mapX": 79.86,
+      "mapY": 15.55
     },
     {
       "stallNumber": "P8",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 85.61,
-      "mapY": 4.84
+      "mapX": 82.92,
+      "mapY": 15.55
     },
     {
       "stallNumber": "P9",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 89.37,
-      "mapY": 4.79
+      "mapX": 85.97,
+      "mapY": 15.51
     },
     {
       "stallNumber": "P10",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 89.37,
-      "mapY": 21.6
+      "mapX": 85.97,
+      "mapY": 27.13
     },
     {
       "stallNumber": "P11",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 85.59,
-      "mapY": 21.65
+      "mapX": 82.9,
+      "mapY": 27.17
     },
     {
       "stallNumber": "P12",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 81.88,
-      "mapY": 21.65
+      "mapX": 79.88,
+      "mapY": 27.17
     },
     {
       "stallNumber": "P13",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 78.14,
-      "mapY": 21.6
+      "mapX": 76.84,
+      "mapY": 27.13
     },
     {
       "stallNumber": "P14",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 74.39,
-      "mapY": 21.6
+      "mapX": 73.79,
+      "mapY": 27.13
     },
     {
       "stallNumber": "P15",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 70.59,
-      "mapY": 21.6
+      "mapX": 70.7,
+      "mapY": 27.13
     },
     {
       "stallNumber": "P16",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 66.86,
-      "mapY": 21.65
+      "mapX": 67.66,
+      "mapY": 27.17
     },
     {
       "stallNumber": "P17",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 63.06,
-      "mapY": 21.6
+      "mapX": 64.58,
+      "mapY": 27.13
     },
     {
       "stallNumber": "P18",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 59.31,
-      "mapY": 21.6
+      "mapX": 61.52,
+      "mapY": 27.13
     },
     {
       "stallNumber": "P19",
       "packageCode": "premium",
       "size": "3m \u00d7 4m",
-      "mapX": 55.51,
-      "mapY": 21.65
+      "mapX": 58.43,
+      "mapY": 27.17
     },
     {
       "stallNumber": "PR1",
       "packageCode": "premium-ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 93.59,
-      "mapY": 28.72
+      "mapX": 89.41,
+      "mapY": 32.06
     },
     {
       "stallNumber": "PR2",
       "packageCode": "premium-ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 93.61,
-      "mapY": 45.43
+      "mapX": 89.43,
+      "mapY": 43.6
     },
     {
       "stallNumber": "PR3",
       "packageCode": "premium-ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 14.65,
-      "mapY": 45.43
+      "mapX": 25.2,
+      "mapY": 43.6
     },
     {
       "stallNumber": "PR4",
       "packageCode": "premium-ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 14.61,
-      "mapY": 52.55
+      "mapX": 25.17,
+      "mapY": 48.53
     },
     {
       "stallNumber": "PR5",
       "packageCode": "premium-ruby-53",
       "size": "3m \u00d7 3m",
-      "mapX": 93.61,
-      "mapY": 52.66
+      "mapX": 89.43,
+      "mapY": 48.6
     },
     {
       "stallNumber": "PR6",
       "packageCode": "premium-ruby-53",
       "size": "3m \u00d7 3m",
-      "mapX": 93.61,
-      "mapY": 69.41
+      "mapX": 89.43,
+      "mapY": 60.18
     },
     {
       "stallNumber": "PR7",
       "packageCode": "premium-ruby-53",
       "size": "3m \u00d7 3m",
-      "mapX": 56.9,
-      "mapY": 69.36
+      "mapX": 59.56,
+      "mapY": 60.15
     },
     {
       "stallNumber": "PR8",
       "packageCode": "premium-ruby-53",
       "size": "3m \u00d7 3m",
-      "mapX": 50.35,
-      "mapY": 69.41
+      "mapX": 54.23,
+      "mapY": 60.18
     },
     {
       "stallNumber": "R1",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 23.1,
-      "mapY": 28.83
+      "mapX": 32.07,
+      "mapY": 32.13
     },
     {
       "stallNumber": "R2",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 25.94,
-      "mapY": 28.83
+      "mapX": 34.38,
+      "mapY": 32.13
     },
     {
       "stallNumber": "R3",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 28.78,
-      "mapY": 28.78
+      "mapX": 36.69,
+      "mapY": 32.1
     },
     {
       "stallNumber": "R4",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 31.55,
-      "mapY": 28.78
+      "mapX": 38.94,
+      "mapY": 32.1
     },
     {
       "stallNumber": "R5",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 34.35,
-      "mapY": 28.78
+      "mapX": 41.22,
+      "mapY": 32.1
     },
     {
       "stallNumber": "R6",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 37.22,
-      "mapY": 28.72
+      "mapX": 43.56,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R7",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 40.04,
-      "mapY": 28.72
+      "mapX": 45.85,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R8",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 42.84,
-      "mapY": 28.78
+      "mapX": 48.12,
+      "mapY": 32.1
     },
     {
       "stallNumber": "R9",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 45.65,
-      "mapY": 28.78
+      "mapX": 50.42,
+      "mapY": 32.1
     },
     {
       "stallNumber": "R10",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 48.47,
-      "mapY": 28.72
+      "mapX": 52.71,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R11",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 51.29,
-      "mapY": 28.72
+      "mapX": 55.0,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R12",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 54.14,
-      "mapY": 28.72
+      "mapX": 57.32,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R13",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 56.96,
-      "mapY": 28.72
+      "mapX": 59.61,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R14",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 59.78,
-      "mapY": 28.72
+      "mapX": 61.9,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R15",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 62.59,
-      "mapY": 28.72
+      "mapX": 64.19,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R16",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 65.45,
-      "mapY": 28.72
+      "mapX": 66.52,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R17",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 68.24,
-      "mapY": 28.72
+      "mapX": 68.79,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R18",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 71.08,
-      "mapY": 28.72
+      "mapX": 71.1,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R19",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 73.9,
-      "mapY": 28.72
+      "mapX": 73.39,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R20",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 76.71,
-      "mapY": 28.72
+      "mapX": 75.68,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R21",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 79.51,
-      "mapY": 28.72
+      "mapX": 77.95,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R22",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 82.33,
-      "mapY": 28.72
+      "mapX": 80.25,
+      "mapY": 32.06
     },
     {
       "stallNumber": "R23",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 85.16,
-      "mapY": 28.83
+      "mapX": 82.55,
+      "mapY": 32.13
     },
     {
       "stallNumber": "R24",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 87.96,
-      "mapY": 28.78
+      "mapX": 84.83,
+      "mapY": 32.1
     },
     {
       "stallNumber": "R25",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 90.8,
-      "mapY": 28.78
+      "mapX": 87.13,
+      "mapY": 32.1
     },
     {
       "stallNumber": "R26",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 90.82,
-      "mapY": 45.48
+      "mapX": 87.15,
+      "mapY": 43.64
     },
     {
       "stallNumber": "R27",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 87.94,
-      "mapY": 45.43
+      "mapX": 84.81,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R28",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 85.16,
-      "mapY": 45.48
+      "mapX": 82.55,
+      "mapY": 43.64
     },
     {
       "stallNumber": "R29",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 82.31,
-      "mapY": 45.43
+      "mapX": 80.23,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R30",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 79.53,
-      "mapY": 45.43
+      "mapX": 77.97,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R31",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 76.71,
-      "mapY": 45.43
+      "mapX": 75.68,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R32",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 73.88,
-      "mapY": 45.43
+      "mapX": 73.37,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R33",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 71.06,
-      "mapY": 45.43
+      "mapX": 71.08,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R34",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 68.24,
-      "mapY": 45.43
+      "mapX": 68.79,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R35",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 65.41,
-      "mapY": 45.43
+      "mapX": 66.48,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R36",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 62.61,
-      "mapY": 45.43
+      "mapX": 64.21,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R37",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 59.78,
-      "mapY": 45.43
+      "mapX": 61.9,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R38",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 56.94,
-      "mapY": 45.43
+      "mapX": 59.59,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R39",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 54.12,
-      "mapY": 45.43
+      "mapX": 57.3,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R40",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 51.29,
-      "mapY": 45.43
+      "mapX": 55.0,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R41",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 48.47,
-      "mapY": 45.43
+      "mapX": 52.71,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R42",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 45.67,
-      "mapY": 45.43
+      "mapX": 50.43,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R43",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 42.86,
-      "mapY": 45.43
+      "mapX": 48.14,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R44",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 40.0,
-      "mapY": 45.43
+      "mapX": 45.82,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R45",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 37.18,
-      "mapY": 45.43
+      "mapX": 43.53,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R46",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 34.39,
-      "mapY": 45.43
+      "mapX": 41.25,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R47",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 31.55,
-      "mapY": 45.43
+      "mapX": 38.94,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R48",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 28.76,
-      "mapY": 45.43
+      "mapX": 36.67,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R49",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 25.94,
-      "mapY": 45.43
+      "mapX": 34.38,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R50",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 23.12,
-      "mapY": 45.43
+      "mapX": 32.09,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R51",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 20.24,
-      "mapY": 45.43
+      "mapX": 29.75,
+      "mapY": 43.6
     },
     {
       "stallNumber": "R52",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 17.47,
-      "mapY": 45.48
+      "mapX": 27.49,
+      "mapY": 43.64
     },
     {
       "stallNumber": "R53",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 17.47,
-      "mapY": 52.66
+      "mapX": 27.49,
+      "mapY": 48.6
     },
     {
       "stallNumber": "R54",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 20.29,
-      "mapY": 52.55
+      "mapX": 29.78,
+      "mapY": 48.53
     },
     {
       "stallNumber": "R55",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 23.1,
-      "mapY": 52.55
+      "mapX": 32.07,
+      "mapY": 48.53
     },
     {
       "stallNumber": "R56",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 25.94,
-      "mapY": 52.61
+      "mapX": 34.38,
+      "mapY": 48.57
     },
     {
       "stallNumber": "R57",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 28.76,
-      "mapY": 52.55
+      "mapX": 36.67,
+      "mapY": 48.53
     },
     {
       "stallNumber": "R58",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 31.55,
-      "mapY": 52.55
+      "mapX": 38.94,
+      "mapY": 48.53
     },
     {
       "stallNumber": "R59",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 34.37,
-      "mapY": 52.61
+      "mapX": 41.24,
+      "mapY": 48.57
     },
     {
       "stallNumber": "R60",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 37.2,
-      "mapY": 52.61
+      "mapX": 43.54,
+      "mapY": 48.57
     },
     {
       "stallNumber": "R61",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 40.02,
-      "mapY": 52.55
+      "mapX": 45.83,
+      "mapY": 48.53
     },
     {
       "stallNumber": "R62",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 42.86,
-      "mapY": 52.61
+      "mapX": 48.14,
+      "mapY": 48.57
     },
     {
       "stallNumber": "R63",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 45.67,
-      "mapY": 52.58
+      "mapX": 50.43,
+      "mapY": 48.55
     },
     {
       "stallNumber": "R64",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 48.49,
-      "mapY": 52.55
+      "mapX": 52.72,
+      "mapY": 48.53
     },
     {
       "stallNumber": "R65",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 51.31,
-      "mapY": 52.61
+      "mapX": 55.01,
+      "mapY": 48.57
     },
     {
       "stallNumber": "R66",
       "packageCode": "regular",
       "size": "3m \u00d7 3m",
-      "mapX": 54.14,
-      "mapY": 52.61
+      "mapX": 57.32,
+      "mapY": 48.57
     },
     {
       "stallNumber": "RU1",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 56.96,
-      "mapY": 52.55
+      "mapX": 59.61,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU2",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 59.78,
-      "mapY": 52.55
+      "mapX": 61.9,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU3",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 62.61,
-      "mapY": 52.61
+      "mapX": 64.21,
+      "mapY": 48.57
     },
     {
       "stallNumber": "RU4",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 65.43,
-      "mapY": 52.55
+      "mapX": 66.5,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU5",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 68.27,
-      "mapY": 52.55
+      "mapX": 68.81,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU6",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 71.08,
-      "mapY": 52.55
+      "mapX": 71.1,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU7",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 73.86,
-      "mapY": 52.5
+      "mapX": 73.36,
+      "mapY": 48.49
     },
     {
       "stallNumber": "RU8",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 76.71,
-      "mapY": 52.55
+      "mapX": 75.68,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU9",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 79.55,
-      "mapY": 52.55
+      "mapX": 77.99,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU10",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 82.35,
-      "mapY": 52.55
+      "mapX": 80.26,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU11",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 85.08,
-      "mapY": 52.55
+      "mapX": 82.49,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU12",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 87.89,
-      "mapY": 52.55
+      "mapX": 84.77,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU13",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 90.71,
-      "mapY": 52.55
+      "mapX": 87.06,
+      "mapY": 48.53
     },
     {
       "stallNumber": "RU14",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 90.51,
-      "mapY": 69.41,
+      "mapX": 86.9,
+      "mapY": 60.18,
       "adminOnly": true
     },
     {
       "stallNumber": "RU15",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 88.02,
-      "mapY": 69.41,
+      "mapX": 84.88,
+      "mapY": 60.18,
       "adminOnly": true
     },
     {
       "stallNumber": "RU16",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 85.16,
-      "mapY": 69.41,
+      "mapX": 82.55,
+      "mapY": 60.18,
       "adminOnly": true
     },
     {
       "stallNumber": "RU17",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 82.06,
-      "mapY": 69.36,
+      "mapX": 80.03,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU18",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 79.55,
-      "mapY": 69.36,
+      "mapX": 77.99,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU19",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 76.59,
-      "mapY": 69.36,
+      "mapX": 75.58,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU20",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 73.9,
-      "mapY": 69.36,
+      "mapX": 73.39,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU21",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 71.1,
-      "mapY": 69.31,
+      "mapX": 71.12,
+      "mapY": 60.11,
       "adminOnly": true
     },
     {
       "stallNumber": "RU22",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 47.49,
-      "mapY": 69.36,
+      "mapX": 51.91,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU23",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 44.51,
-      "mapY": 69.36,
+      "mapX": 49.49,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU24",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 41.65,
-      "mapY": 69.36,
+      "mapX": 47.16,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU25",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 39.04,
-      "mapY": 69.31,
+      "mapX": 45.04,
+      "mapY": 60.11,
       "adminOnly": true
     },
     {
       "stallNumber": "RU26",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 36.27,
-      "mapY": 69.31,
+      "mapX": 42.78,
+      "mapY": 60.11,
       "adminOnly": true
     },
     {
       "stallNumber": "RU27",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 33.35,
-      "mapY": 69.36,
+      "mapX": 40.41,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU28",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 30.63,
-      "mapY": 69.36,
+      "mapX": 38.2,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU29",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 27.8,
-      "mapY": 69.36,
+      "mapX": 35.89,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU30",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 24.96,
-      "mapY": 69.36,
+      "mapX": 33.58,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU31",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 22.16,
-      "mapY": 69.36,
+      "mapX": 31.31,
+      "mapY": 60.15,
       "adminOnly": true
     },
     {
       "stallNumber": "RU32",
       "packageCode": "ruby",
       "size": "3m \u00d7 3m",
-      "mapX": 19.37,
-      "mapY": 69.31,
+      "mapX": 29.03,
+      "mapY": 60.11,
       "adminOnly": true
     },
     {
       "stallNumber": "B1",
       "packageCode": "bronze",
       "size": "3m \u00d7 5m",
-      "mapX": 98.27,
-      "mapY": 7.23
+      "mapX": 93.21,
+      "mapY": 17.21
     },
     {
       "stallNumber": "B2",
       "packageCode": "bronze",
       "size": "3m \u00d7 5m",
-      "mapX": 98.29,
-      "mapY": 19.15
+      "mapX": 93.23,
+      "mapY": 25.44
     },
     {
       "stallNumber": "B3",
       "packageCode": "bronze",
       "size": "3m \u00d7 5m",
-      "mapX": 98.33,
-      "mapY": 31.12
+      "mapX": 93.26,
+      "mapY": 33.71
     },
     {
       "stallNumber": "B4",
       "packageCode": "bronze",
       "size": "3m \u00d7 5m",
-      "mapX": 98.31,
-      "mapY": 42.98
+      "mapX": 93.24,
+      "mapY": 41.91
     }
   ]
 }
