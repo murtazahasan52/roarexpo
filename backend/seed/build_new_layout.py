@@ -6,6 +6,9 @@ from PIL import Image
 CROP = (140, 150, 2350, 850)  # x0,y0,x1,y1
 x0,y0,x1,y1 = CROP
 cw, ch = x1-x0, y1-y0
+BAND_TOP = ch + 28          # zone band sits below the stall grid
+BAND_BOTTOM = ch + 210
+FINAL_H = ch + 240          # extra canvas height for the zone band
 
 items = json.load(open('/tmp/ocr_items.json'))
 pat = re.compile(r'^(T|D|G|S|PP|P|PR|R|RU|B)(\d+)$')
@@ -59,7 +62,7 @@ stalls=[]
 for label in expected:
     cx,cy = cent[label]
     mapX = round((cx-x0)/cw*100, 2)
-    mapY = round((cy-y0)/ch*100, 2)
+    mapY = round((cy-y0)/FINAL_H*100, 2)
     code,size = pkg_for(label)
     rec = {'stallNumber':label,'packageCode':code,'size':size,'mapX':mapX,'mapY':mapY}
     # per-stall admin-only: RU14..RU32 admin only; RU1..RU13 public
@@ -85,19 +88,55 @@ series=[
  {'prefix':'B','packageCode':'bronze','separator':''},
 ]
 
-# crop & save image
+# crop grid, then extend canvas downward and draw the STAGE / FOOD COURT / PLAY ZONE band
+from PIL import ImageDraw, ImageFont
 img = Image.open('/tmp/roar_new.png').convert('RGB')
 crop_img = img.crop(CROP)
-crop_img.save('/app/backend/seed/assets/final-layout.png')
-CW,CH = crop_img.size
-print('cropped image size', CW, CH)
+canvas = Image.new('RGB', (cw, FINAL_H), '#ffffff')
+canvas.paste(crop_img, (0, 0))
+d = ImageDraw.Draw(canvas)
+def _font(sz):
+    try: return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', sz)
+    except Exception: return ImageFont.load_default()
+zf = _font(40)
+margin, gapx = 40, 30
+zw = (cw - 2*margin - 2*gapx) / 3
+zones = [
+    ('PLAY ZONE',  '#e8f4ff', '#2f6fb0'),
+    ('STAGE',      '#efe6ff', '#6d28d9'),
+    ('FOOD COURT', '#fff2e0', '#c2670a'),
+]
+for i,(label,fill,outline) in enumerate(zones):
+    zx0 = margin + i*(zw+gapx)
+    zx1 = zx0 + zw
+    d.rounded_rectangle([zx0, BAND_TOP, zx1, BAND_BOTTOM], radius=22, fill=fill, outline=outline, width=4)
+    tb = d.textbbox((0,0), label, font=zf)
+    tx = zx0 + (zw - (tb[2]-tb[0]))/2
+    ty = BAND_TOP + (BAND_BOTTOM-BAND_TOP - (tb[3]-tb[1]))/2 - tb[1]
+    d.text((tx, ty), label, fill=outline, font=zf)
+canvas.save('/app/backend/seed/assets/final-layout.png')
+CW,CH = canvas.size
+print('final image size', CW, CH)
+
+# informational zones (not bookable) recorded for reference
+zone_records = []
+for i,(label,fill,outline) in enumerate(zones):
+    zx0 = margin + i*(zw+gapx); zx1 = zx0 + zw
+    zone_records.append({
+        'label': label,
+        'x': round((zx0+zx1)/2/CW*100, 2),
+        'y': round((BAND_TOP+BAND_BOTTOM)/2/CH*100, 2),
+        'w': round(zw/CW*100, 2),
+        'h': round((BAND_BOTTOM-BAND_TOP)/CH*100, 2),
+    })
 
 layout = {
- 'version':'2027-01-newpdf-v1',
+ 'version':'2027-01-newpdf-v2-zones',
  'imageWidth':CW,'imageHeight':CH,
  'series':series,
  'retiredStalls':[],
- 'notes':['New 2027 floor plan from ROAR_EXPO_LAYOUT_COLOR_PRESENTATION_FINAL.pdf. 148 numbered stalls. RU1-RU13 public, RU14-RU32 admin-only. BZ1/GS1 excluded per organizer.'],
+ 'zones':zone_records,
+ 'notes':['New 2027 floor plan from ROAR_EXPO_LAYOUT_COLOR_PRESENTATION_FINAL.pdf. 148 numbered stalls. RU1-RU13 public, RU14-RU32 admin-only. BZ1/GS1 excluded per organizer. STAGE/FOOD COURT/PLAY ZONE drawn as informational band below the grid.'],
  'stalls':stalls,
 }
 json.dump(layout, open('/app/backend/seed/final_layout.json','w'), indent=2)
