@@ -6,9 +6,11 @@ from PIL import Image
 CROP = (140, 150, 2350, 850)  # x0,y0,x1,y1
 x0,y0,x1,y1 = CROP
 cw, ch = x1-x0, y1-y0
-BAND_TOP = ch + 28          # zone band sits below the stall grid
+LEFT_PAD = 240             # left strip for the STAGE area (outside the hall)
+FINAL_W = LEFT_PAD + cw
+BAND_TOP = ch + 28         # zone band (Play Zone | Food Court) below the grid
 BAND_BOTTOM = ch + 210
-FINAL_H = ch + 240          # extra canvas height for the zone band
+FINAL_H = ch + 240
 
 items = json.load(open('/tmp/ocr_items.json'))
 pat = re.compile(r'^(T|D|G|S|PP|P|PR|R|RU|B)(\d+)$')
@@ -61,7 +63,7 @@ assert set(expected)==set(cent), set(expected)^set(cent)
 stalls=[]
 for label in expected:
     cx,cy = cent[label]
-    mapX = round((cx-x0)/cw*100, 2)
+    mapX = round((LEFT_PAD + (cx-x0))/FINAL_W*100, 2)
     mapY = round((cy-y0)/FINAL_H*100, 2)
     code,size = pkg_for(label)
     rec = {'stallNumber':label,'packageCode':code,'size':size,'mapX':mapX,'mapY':mapY}
@@ -88,55 +90,62 @@ series=[
  {'prefix':'B','packageCode':'bronze','separator':''},
 ]
 
-# crop grid, then extend canvas downward and draw the STAGE / FOOD COURT / PLAY ZONE band
+# crop grid, then build a wider/taller canvas:
+#   left strip = STAGE (outside the hall);  bottom band = PLAY ZONE | FOOD COURT
 from PIL import ImageDraw, ImageFont
 img = Image.open('/tmp/roar_new.png').convert('RGB')
 crop_img = img.crop(CROP)
-canvas = Image.new('RGB', (cw, FINAL_H), '#ffffff')
-canvas.paste(crop_img, (0, 0))
+canvas = Image.new('RGB', (FINAL_W, FINAL_H), '#ffffff')
+canvas.paste(crop_img, (LEFT_PAD, 0))
 d = ImageDraw.Draw(canvas)
 def _font(sz):
     try: return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', sz)
     except Exception: return ImageFont.load_default()
-zf = _font(40)
-margin, gapx = 40, 30
-zw = (cw - 2*margin - 2*gapx) / 3
-zones = [
-    ('PLAY ZONE',  '#e8f4ff', '#2f6fb0'),
-    ('STAGE',      '#efe6ff', '#6d28d9'),
-    ('FOOD COURT', '#fff2e0', '#c2670a'),
-]
-for i,(label,fill,outline) in enumerate(zones):
-    zx0 = margin + i*(zw+gapx)
-    zx1 = zx0 + zw
-    d.rounded_rectangle([zx0, BAND_TOP, zx1, BAND_BOTTOM], radius=22, fill=fill, outline=outline, width=4)
-    tb = d.textbbox((0,0), label, font=zf)
-    tx = zx0 + (zw - (tb[2]-tb[0]))/2
-    ty = BAND_TOP + (BAND_BOTTOM-BAND_TOP - (tb[3]-tb[1]))/2 - tb[1]
-    d.text((tx, ty), label, fill=outline, font=zf)
+
+def _draw_label(box, label, fill, outline, radius, font, rotate=False):
+    zx0, zy0, zx1, zy1 = box
+    d.rounded_rectangle([zx0, zy0, zx1, zy1], radius=radius, fill=fill, outline=outline, width=4)
+    tb = d.textbbox((0,0), label, font=font)
+    tw, th = tb[2]-tb[0], tb[3]-tb[1]
+    if rotate:
+        tmp = Image.new('RGBA', (tw+8, th+8), (0,0,0,0))
+        ImageDraw.Draw(tmp).text((4-tb[0], 4-tb[1]), label, fill='#ffffff', font=font)
+        tmp = tmp.rotate(90, expand=True)
+        canvas.paste(tmp, (int((zx0+zx1)/2 - tmp.width/2), int((zy0+zy1)/2 - tmp.height/2)), tmp)
+    else:
+        d.text((zx0 + (zx1-zx0-tw)/2, zy0 + (zy1-zy0-th)/2 - tb[1]), label, fill='#ffffff', font=font)
+
+# STAGE — tall red box on the left, spanning the grid height
+stage_box = (24, 24, LEFT_PAD-30, ch-24)
+_draw_label(stage_box, 'STAGE', '#c62828', '#8e1c1c', 20, _font(46), rotate=True)
+
+# bottom band: left half PLAY ZONE, right half FOOD COURT
+gridL = LEFT_PAD
+gap = 30
+mid = gridL + cw/2
+play_box = (gridL + 6, BAND_TOP, mid - gap/2, BAND_BOTTOM)
+food_box = (mid + gap/2, BAND_TOP, gridL + cw - 6, BAND_BOTTOM)
+_draw_label(play_box, 'PLAY ZONE', '#6d28d9', '#4c1d95', 26, _font(44))
+_draw_label(food_box, 'FOOD COURT', '#f97316', '#c2410c', 26, _font(44))
+
 canvas.save('/app/backend/seed/assets/final-layout.png')
 CW,CH = canvas.size
 print('final image size', CW, CH)
 
-# informational zones (not bookable) recorded for reference
-zone_records = []
-for i,(label,fill,outline) in enumerate(zones):
-    zx0 = margin + i*(zw+gapx); zx1 = zx0 + zw
-    zone_records.append({
-        'label': label,
-        'x': round((zx0+zx1)/2/CW*100, 2),
-        'y': round((BAND_TOP+BAND_BOTTOM)/2/CH*100, 2),
-        'w': round(zw/CW*100, 2),
-        'h': round((BAND_BOTTOM-BAND_TOP)/CH*100, 2),
-    })
+# informational zones (not bookable)
+def _rec(label, box):
+    zx0,zy0,zx1,zy1 = box
+    return {'label':label,'x':round((zx0+zx1)/2/CW*100,2),'y':round((zy0+zy1)/2/CH*100,2),
+            'w':round((zx1-zx0)/CW*100,2),'h':round((zy1-zy0)/CH*100,2)}
+zone_records = [_rec('STAGE',stage_box), _rec('PLAY ZONE',play_box), _rec('FOOD COURT',food_box)]
 
 layout = {
- 'version':'2027-01-newpdf-v2-zones',
+ 'version':'2027-01-newpdf-v3-zones',
  'imageWidth':CW,'imageHeight':CH,
  'series':series,
  'retiredStalls':[],
  'zones':zone_records,
- 'notes':['New 2027 floor plan from ROAR_EXPO_LAYOUT_COLOR_PRESENTATION_FINAL.pdf. 148 numbered stalls. RU1-RU13 public, RU14-RU32 admin-only. BZ1/GS1 excluded per organizer. STAGE/FOOD COURT/PLAY ZONE drawn as informational band below the grid.'],
+ 'notes':['New 2027 floor plan. 148 numbered stalls. RU1-RU13 public, RU14-RU32 admin-only. BZ1/GS1 excluded. STAGE on the left, PLAY ZONE + FOOD COURT band below the grid.'],
  'stalls':stalls,
 }
 json.dump(layout, open('/app/backend/seed/final_layout.json','w'), indent=2)
