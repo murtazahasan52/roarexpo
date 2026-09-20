@@ -27,7 +27,7 @@ export const fallbackConfig = {
     { code: "bronze", label: "Bronze Stall", icon: "🥉", rate: 253000, size: "3m × 5m", stallCount: 4, hasStallPicker: true, inclusions: "15 sq m · Standard furnishing package, fascia signage" },
     { code: "premium-corner", label: "Premium Corner Stall", icon: "⭐", rate: 100000, size: "3m × 4m", stallCount: 5, hasStallPicker: true, inclusions: "12 sq m · Corner location (PP1–PP5), fascia signage" },
     { code: "premium", label: "Premium Stall", icon: "⭐", rate: 72000, size: "3m × 4m", stallCount: 19, hasStallPicker: true, inclusions: "12 sq m · 1 table, 2 chairs, power point, fascia signage" },
-    { code: "premium-ruby", label: "Premium Ruby Stall", rate: 72000, size: "3m × 3m", stallCount: 4, hasStallPicker: true, inclusions: "9 sq m · Premium Ruby corner (PR1–PR4), fascia signage" },
+    { code: "premium-ruby", label: "Premium Corner Stall (9 sq m)", icon: "⭐", rate: 72000, size: "3m × 3m", stallCount: 4, hasStallPicker: true, inclusions: "9 sq m · Premium corner (PR1–PR4), fascia signage" },
     { code: "premium-corner-15", label: "Premium Corner Stall (15 sq m)", icon: "⭐", rate: 53000, size: "3m × 5m", stallCount: 2, hasStallPicker: true, inclusions: "15 sq m · Corner location (PP6–PP7), fascia signage" },
     { code: "premium-ruby-53", label: "Premium Ruby Stall (Standard)", rate: 53000, size: "3m × 3m", stallCount: 4, hasStallPicker: true, inclusions: "9 sq m · Premium Ruby (PR5–PR8), fascia signage" },
     { code: "regular", label: "Regular Stall", rate: 53000, size: "3m × 3m", stallCount: 66, hasStallPicker: true, inclusions: "9 sq m · 1 table, 2 chairs, power point, fascia signage" },

@@ -85,10 +85,11 @@ export function StallTip({ stall, tip, packageLabel, extra }) {
       <strong>
         {stall.stallNumber} · {packageLabel(stall.packageCode)}
       </strong>
-      {stall.status === "booked" && stall.owner ? (
+      {stall.owner && (stall.status === "booked" || stall.status === "held") ? (
         <>
           <div>{stall.owner.companyName || "—"}</div>
           {stall.owner.contactPerson && <div className="tip-muted">{stall.owner.contactPerson}</div>}
+          {stall.status === "held" && <div className="tip-muted">{STATUS_LABEL.held}</div>}
         </>
       ) : (
         <div className="tip-muted">{STATUS_LABEL[stall.status] || stall.status}</div>

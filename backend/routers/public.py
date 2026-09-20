@@ -56,13 +56,16 @@ async def stall_directory(db: AsyncIOMotorDatabase = Depends(get_db)):
     await release_expired_holds(db)
     stalls = await db.stalls.find({"mapX": {"$ne": None}, "mapY": {"$ne": None}}).sort("stallNumber", 1).to_list(length=None)
     booked_ids = [s["bookedBy"] for s in stalls if s.get("status") == "booked" and s.get("bookedBy")]
+    held_ids = [s["heldBy"] for s in stalls if s.get("status") == "held" and s.get("heldBy")]
+    all_ids = list({*booked_ids, *held_ids})
     owners = {}
-    if booked_ids:
-        for e in await db.exhibitors.find({"_id": {"$in": booked_ids}}, {"companyName": 1, "contactPerson": 1}).to_list(length=None):
+    if all_ids:
+        for e in await db.exhibitors.find({"_id": {"$in": all_ids}}, {"companyName": 1, "contactPerson": 1}).to_list(length=None):
             owners[e["_id"]] = {"companyName": e.get("companyName", ""), "contactPerson": e.get("contactPerson", "")}
     data = []
     for s in stalls:
-        owner = owners.get(s.get("bookedBy")) if s.get("status") == "booked" else None
+        oid = s.get("bookedBy") if s.get("status") == "booked" else (s.get("heldBy") if s.get("status") == "held" else None)
+        owner = owners.get(oid) if oid else None
         data.append({
             "id": str(s["_id"]), "stallNumber": s["stallNumber"], "packageCode": s["packageCode"],
             "status": s["status"], "adminOnly": bool(s.get("adminOnly")), "mapX": s["mapX"], "mapY": s["mapY"], "owner": owner,

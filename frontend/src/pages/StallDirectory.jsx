@@ -119,7 +119,7 @@ export default function StallDirectory() {
                   role="button"
                   tabIndex={0}
                   aria-label={`${s.stallNumber}, ${packageLabel(s.packageCode)}, ${STATUS_LABEL[s.status] || s.status}${
-                    s.owner ? `, booked by ${s.owner.companyName}` : ""
+                    s.owner ? `, ${s.status === "held" ? "reserved by" : "booked by"} ${s.owner.companyName}` : ""
                   }`}
                 >
                   {s.stallNumber}
