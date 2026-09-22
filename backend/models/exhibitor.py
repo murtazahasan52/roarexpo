@@ -108,6 +108,7 @@ def new_exhibitor_document(fields: dict) -> dict:
         "stallNumber": (fields.get("stallNumber") or "").strip().upper(),
         "stallId": fields.get("stallId"),
         "stallRate": fields.get("stallRate"),
+        "totalAmount": fields.get("totalAmount"),
         "fasciaName": (fields.get("fasciaName") or "").strip(),
         "agreedToTerms": True,
         "status": "pending",

@@ -49,6 +49,12 @@ async def lifespan(app: FastAPI):
         await _migrate_bookings(db)
     except Exception as err:  # noqa: BLE001 — never block start-up on this
         print("[migrate] booking migration failed:", err)
+    # One-time fix: split doubled multi-stall totals + resend corrected emails.
+    try:
+        from seed.fix_stall_totals import fix_stall_totals as _fix_stall_totals
+        await _fix_stall_totals(db)
+    except Exception as err:  # noqa: BLE001 — never block start-up on this
+        print("[migrate] stall-total fix failed:", err)
     # A fresh database gets its owner admin from ADMIN_EMAIL / ADMIN_PASSWORD.
     try:
         await ensure_owner_admin(db)

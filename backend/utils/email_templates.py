@@ -51,16 +51,21 @@ def payment_cheque_attachments() -> list:
 def _payment_section(exhibitor: dict, *, reminder: bool = False) -> str:
     rate = exhibitor.get("stallRate")
     n = exhibitor.get("numberOfStalls") or 1
+    total = exhibitor.get("totalAmount")
     try:
-        total = int(rate) * int(n) if rate is not None else None
+        total = int(total) if total is not None else (int(rate) * int(n) if rate is not None else None)
     except (TypeError, ValueError):
         total = None
     amount_html = ""
     if total is not None:
-        per = f"₹{int(rate):,} × {n} stall(s)" if int(n) > 1 else f"₹{int(rate):,}"
+        try:
+            per = f"₹{int(rate):,} × {n} stall(s)" if rate is not None and int(n) > 1 else f"₹{int(rate):,}"
+        except (TypeError, ValueError):
+            per = None
+        detail = f' <span style="font-weight:normal;color:#888;">({per})</span>' if per else ""
         amount_html = (
             f'<tr><td style="padding:6px 0;color:#666;width:180px;">Amount Payable</td>'
-            f'<td style="padding:6px 0;font-weight:bold;color:#0c1a33;">₹{total:,} <span style="font-weight:normal;color:#888;">({per})</span></td></tr>'
+            f'<td style="padding:6px 0;font-weight:bold;color:#0c1a33;">₹{total:,}{detail}</td></tr>'
         )
     heading = "Payment Reminder" if reminder else "Payment Details — Transfer Your Stall Amount"
     intro = (

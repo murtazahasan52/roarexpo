@@ -311,6 +311,8 @@ async def admin_book_stall(
         amt = int(round(float(amount))) if str(amount).strip() else sum(s.get("rate") or 0 for s in stalls)
     except (TypeError, ValueError):
         amt = sum(s.get("rate") or 0 for s in stalls)
+    count = len(stall_number_list)
+    per_stall = int(round(amt / count)) if count else amt
 
     logo_url = ""
     if logo is not None:
@@ -335,7 +337,8 @@ async def admin_book_stall(
         "logoUrl": logo_url, "productImages": product_image_urls,
         "category": category, "productsServices": productsServices, "message": message,
         "stallPackage": first_stall.get("packageCode", ""), "numberOfStalls": len(stall_number_list),
-        "stallNumber": stall_number_display, "stallId": first_stall["_id"], "stallRate": amt,
+        "stallNumber": stall_number_display, "stallId": first_stall["_id"], "stallRate": per_stall,
+        "totalAmount": amt,
         "fasciaName": fasciaName,
     })
     doc["stallNumbers"] = stall_number_list

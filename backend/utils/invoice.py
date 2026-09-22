@@ -87,7 +87,9 @@ def build_exhibitor_invoice_pdf(exhibitor: dict) -> bytes:
     rate = exhibitor.get("stallRate")
     if rate is None:
         rate = (stall_package_info or {}).get("rate")
-    total = rate * quantity if rate is not None else None
+    total = exhibitor.get("totalAmount")
+    if total is None:
+        total = rate * quantity if rate is not None else None
 
     buf = io.BytesIO()
     doc = BaseDocTemplate(
@@ -164,7 +166,7 @@ def build_exhibitor_invoice_pdf(exhibitor: dict) -> bytes:
         Paragraph(exhibitor.get("stallNumber") or "Not yet assigned", value_style),
         Paragraph(str(quantity), value_style),
         Paragraph(
-            _format_amount(rate * quantity if rate is not None else None),
+            _format_amount(total),
             ParagraphStyle("amt", fontName="Helvetica-Bold", fontSize=10.5, textColor=INK, alignment=TA_RIGHT),
         ),
     ]
