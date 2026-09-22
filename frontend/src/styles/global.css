@@ -1946,22 +1946,16 @@ p {
 }
 
 .hero-crest {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: center;
-  gap: 54px;
-  flex-wrap: nowrap;
+  gap: 20px;
+  width: 100%;
 }
 
 .hero-crest .hero-title {
   margin: 0;
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.hero-crest .hero-logo {
-  width: auto;
-  max-width: min(46vw, 470px);
+  justify-self: center;
 }
 
 .hero-crest-side {
@@ -1969,16 +1963,25 @@ p {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  flex: 0 0 auto;
 }
 
-@media (max-width: 860px) {
+.hero-crest-side:first-child {
+  justify-self: start;
+}
+
+.hero-crest-side:last-child {
+  justify-self: end;
+}
+
+@media (max-width: 900px) {
   .hero-crest {
-    flex-wrap: wrap;
-    gap: 22px;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 18px;
   }
-  .hero-crest .hero-logo {
-    max-width: 88vw;
+  .hero-crest-side:first-child,
+  .hero-crest-side:last-child {
+    justify-self: center;
   }
 }
 
