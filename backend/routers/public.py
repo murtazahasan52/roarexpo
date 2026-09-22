@@ -26,9 +26,9 @@ async def get_config():
 # ordered by package tier (Title, Diamond, Gold, Silver, Premiums, Regular,
 # Bronze, Ruby). Updates automatically as exhibitors get approved.
 _LOGO_TIER_ORDER = [
-    "title", "diamond", "gold", "silver",
+    "title", "diamond", "gold", "silver", "bronze",
     "premium-corner", "premium", "premium-ruby", "premium-corner-15", "premium-ruby-53",
-    "regular", "bronze", "ruby",
+    "regular", "ruby",
 ]
 
 

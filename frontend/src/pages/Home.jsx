@@ -74,7 +74,6 @@ export default function Home() {
   return (
     <>
       <Hero />
-      <ExhibitorMarquee />
 
       <section className="section stats-section">
         <div className="container">
@@ -83,6 +82,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <ExhibitorMarquee />
 
       <section className="section section-alt">
         <div className="container">
