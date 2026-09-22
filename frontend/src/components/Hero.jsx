@@ -15,35 +15,38 @@ export default function Hero() {
     <section className="hero">
       <div className="container hero-inner">
         <div className="hero-tagline fade-up-1">{config.eventTagline}</div>
-        <div className="hero-crest fade-up-2">
-          <div className="organizer-logo-item hero-crest-side">
-            <span className="organizer-logo-label">Managed By</span>
-            <img
-              src={economicAffairsLogo}
-              alt="Dawoodi Bohra Department of Economic Affairs — Nagpur Jamiyat"
-              className="organizer-logo-img organizer-logo-img-tall"
-            />
-          </div>
-          <h1 className="hero-title">
-            <img src={roarWordmark} alt="ROAR — Rose, Orange and Tiger emblem" className="hero-logo" />
-          </h1>
-          <div className="organizer-logo-item hero-crest-side">
-            <span className="organizer-logo-label">In Association With</span>
-            <img src={dbohraLogo} alt="dbohra — A Global Business Network" className="organizer-logo-img organizer-logo-img-wide" />
-          </div>
-        </div>
+        <h1 className="hero-title fade-up-2">
+          <img src={roarWordmark} alt="ROAR — Rose, Orange and Tiger emblem" className="hero-logo" />
+        </h1>
         <div className="hero-subtitle fade-up-3">
           Business Expo &ndash; <span className="hero-city">{config.eventCity}</span>
         </div>
         <div className="hero-managed-by fade-up-3">
           Managed by Dawoodi Bohra Department of Economic Affairs {config.eventCity}
         </div>
-        <div className="sponsor-logos fade-up-3" data-testid="hero-sponsor-logos">
-          <span className="sponsor-logos-label">Title Sponsor</span>
-          <div className="sponsor-logos-row">
-            <img src={perfectBuildcomLogo} alt="Perfect Buildcom — Title Sponsor" className="sponsor-logo-img sponsor-logo-dark" data-testid="sponsor-logo-perfect" />
-            <img src={qualityTradingLogo} alt="Quality Trading Company, Nagpur — Title Sponsor" className="sponsor-logo-img sponsor-logo-light" data-testid="sponsor-logo-quality" />
-          </div>
+        <div className="brand-logo-row fade-up-3" data-testid="hero-organizer-logos">
+          <figure className="brand-logo-tile">
+            <figcaption className="brand-logo-label">Managed By</figcaption>
+            <img
+              src={economicAffairsLogo}
+              alt="Dawoodi Bohra Department of Economic Affairs — Nagpur Jamiyat"
+              className="brand-logo-img"
+            />
+          </figure>
+          <figure className="brand-logo-tile">
+            <figcaption className="brand-logo-label">In Association With</figcaption>
+            <img src={dbohraLogo} alt="dbohra — A Global Business Network" className="brand-logo-img" />
+          </figure>
+        </div>
+        <div className="brand-logo-row fade-up-3" data-testid="hero-sponsor-logos">
+          <figure className="brand-logo-tile">
+            <figcaption className="brand-logo-label brand-logo-label-title">Title Sponsor</figcaption>
+            <img src={perfectBuildcomLogo} alt="Perfect Buildcom — Title Sponsor" className="brand-logo-img brand-logo-img-dark" data-testid="sponsor-logo-perfect" />
+          </figure>
+          <figure className="brand-logo-tile">
+            <figcaption className="brand-logo-label brand-logo-label-title">Title Sponsor</figcaption>
+            <img src={qualityTradingLogo} alt="Quality Trading Company, Nagpur — Title Sponsor" className="brand-logo-img" data-testid="sponsor-logo-quality" />
+          </figure>
         </div>
         <p className="hero-lead fade-up-4">
           A 3-day business expo bringing together {config.totalStalls} exhibitors across{" "}

@@ -18,7 +18,7 @@ from config.event_config import EVENT
 from middleware.rate_limit import rate_limit
 from middleware.upload import EXHIBITOR_FILE_MAX_BYTES, save_upload
 from models.exhibitor import new_exhibitor_document
-from utils.email_templates import exhibitor_alert_html, exhibitor_email_html
+from utils.email_templates import exhibitor_alert_html, exhibitor_email_html, payment_cheque_attachments
 from utils.generate_code import generate_registration_code
 from utils.validators import is_valid_email, is_valid_url
 from utils.whatsapp import send_whatsapp
@@ -210,6 +210,7 @@ async def register_exhibitor(
                 bcc=None,
                 subject=f"Stall Registration Received — {EVENT['eventName']}",
                 html=exhibitor_email_html(doc),
+                attachments=payment_cheque_attachments(),
             )
             await db.exhibitors.update_one({"_id": doc["_id"]}, {"$set": {"emailSent": True}})
         except Exception as mail_err:  # noqa: BLE001

@@ -24,6 +24,72 @@ _BRAND_FOOTER = f"""
 """
 
 
+import os
+
+# Title-sponsor bank account for stall payments (from the organizer's cheque).
+_PAYMENT = {
+    "bankName": "Axis Bank Ltd",
+    "branch": "Lakadganj, Nagpur (MH) — 440008",
+    "accountName": "Dawoodi Bohra Jamaat Trust",
+    "accountNumber": "330010200004312",
+    "ifsc": "UTIB0000330",
+}
+
+_CHEQUE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "payment-cheque.jpg")
+
+
+def payment_cheque_attachments() -> list:
+    """Inline cheque image (cid:cheque) for the payment emails; [] if missing."""
+    try:
+        with open(_CHEQUE_PATH, "rb") as f:
+            return [{"filename": "account-cheque.jpg", "content": f.read(),
+                     "contentType": "image/jpeg", "cid": "cheque"}]
+    except OSError:
+        return []
+
+
+def _payment_section(exhibitor: dict, *, reminder: bool = False) -> str:
+    rate = exhibitor.get("stallRate")
+    n = exhibitor.get("numberOfStalls") or 1
+    try:
+        total = int(rate) * int(n) if rate is not None else None
+    except (TypeError, ValueError):
+        total = None
+    amount_html = ""
+    if total is not None:
+        per = f"₹{int(rate):,} × {n} stall(s)" if int(n) > 1 else f"₹{int(rate):,}"
+        amount_html = (
+            f'<tr><td style="padding:6px 0;color:#666;width:180px;">Amount Payable</td>'
+            f'<td style="padding:6px 0;font-weight:bold;color:#0c1a33;">₹{total:,} <span style="font-weight:normal;color:#888;">({per})</span></td></tr>'
+        )
+    heading = "Payment Reminder" if reminder else "Payment Details — Transfer Your Stall Amount"
+    intro = (
+        "This is a gentle reminder to complete the payment for your stall booking. "
+        "Please transfer the amount to the account below and share the payment receipt with us."
+        if reminder else
+        "To secure your stall, please transfer the amount to the account below and share the payment receipt with us."
+    )
+    return f"""
+    <div style="margin:22px 0;padding:18px 20px;background:#fbf7ee;border:1px solid #ecdfbf;border-radius:10px;">
+      <h3 style="margin:0 0 8px;color:#0c1a33;">{heading}</h3>
+      <p style="margin:0 0 12px;color:#444;">{intro}</p>
+      <table style="width:100%;border-collapse:collapse;">
+        {amount_html}
+        <tr><td style="padding:6px 0;color:#666;width:180px;">Account Name</td><td style="padding:6px 0;font-weight:bold;">{_PAYMENT['accountName']}</td></tr>
+        <tr><td style="padding:6px 0;color:#666;">Bank</td><td style="padding:6px 0;">{_PAYMENT['bankName']}</td></tr>
+        <tr><td style="padding:6px 0;color:#666;">Branch</td><td style="padding:6px 0;">{_PAYMENT['branch']}</td></tr>
+        <tr><td style="padding:6px 0;color:#666;">Account Number</td><td style="padding:6px 0;font-weight:bold;letter-spacing:1px;">{_PAYMENT['accountNumber']}</td></tr>
+        <tr><td style="padding:6px 0;color:#666;">IFSC Code</td><td style="padding:6px 0;font-weight:bold;">{_PAYMENT['ifsc']}</td></tr>
+      </table>
+      <p style="margin:14px 0 8px;color:#666;font-size:13px;">Cheque copy for your reference:</p>
+      <div style="text-align:center;">
+        <img src="cid:cheque" alt="Bank account cheque for stall payment" style="width:100%;max-width:460px;border:1px solid #e3d9c0;border-radius:8px;" />
+      </div>
+      <p style="margin:12px 0 0;color:#888;font-size:12px;">After transferring, please reply with the transaction reference / screenshot so we can mark your payment as received.</p>
+    </div>
+  """
+
+
 def _wrap(inner_html: str) -> str:
     return f"""
   <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;color:#222;border:1px solid #eee;">
@@ -90,6 +156,8 @@ def exhibitor_email_html(exhibitor: dict) -> str:
     <p>Our team will review and confirm your stall shortly. For any queries, reply to this email or
       WhatsApp us at <strong>{EVENT['contact']['whatsapp']}</strong> (message only &mdash; no calls).</p>
 
+    {_payment_section(exhibitor)}
+
     <p style="margin-bottom:0;">We look forward to a great show together!<br/>Team ROAR Expo</p>
   """
 
@@ -118,7 +186,34 @@ def exhibitor_approved_email_html(exhibitor: dict) -> str:
     <p>See the move-in schedule and exhibitor guidelines in your earlier registration email. We look
       forward to seeing you at the expo!</p>
 
+    {_payment_section(exhibitor)}
+
     <p style="margin-bottom:0;">Team ROAR Expo</p>
+  """
+    return _wrap(inner)
+
+
+def exhibitor_payment_reminder_email_html(exhibitor: dict) -> str:
+    stall_row = (
+        f'<tr><td style="padding:6px 0;color:#666;">Stall Number</td><td style="padding:6px 0;font-weight:bold;">{exhibitor.get("stallNumber")}</td></tr>'
+        if exhibitor.get("stallNumber")
+        else ""
+    )
+    inner = f"""
+    <h2 style="margin-top:0;color:#0c1a33;">Payment reminder for your stall</h2>
+    <p>Dear {exhibitor.get('contactPerson')},</p>
+    <p>This is a friendly reminder to complete the payment for your stall booking with
+      <strong>{exhibitor.get('companyName')}</strong> at <strong>{EVENT['eventName']}</strong>.</p>
+
+    <table style="width:100%;border-collapse:collapse;margin:18px 0;">
+      <tr><td style="padding:6px 0;color:#666;width:180px;">Registration ID</td><td style="padding:6px 0;font-weight:bold;">{exhibitor.get('registrationCode')}</td></tr>
+      {stall_row}
+      <tr><td style="padding:6px 0;color:#666;">Event Dates</td><td style="padding:6px 0;">{EVENT['eventDatesLabel']}</td></tr>
+    </table>
+
+    {_payment_section(exhibitor, reminder=True)}
+
+    <p style="margin-bottom:0;">Thank you,<br/>Team ROAR Expo</p>
   """
     return _wrap(inner)
 

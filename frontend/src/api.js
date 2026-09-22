@@ -104,6 +104,7 @@ export const api = {
   getStalls: (packageCode) => request(`/public/stalls${packageCode ? `?packageCode=${encodeURIComponent(packageCode)}` : ""}`),
   getStallMap: () => request("/public/stall-map"),
   getStallDirectory: () => request("/public/stall-directory"),
+  getExhibitorLogos: () => request("/public/exhibitor-logos"),
   registerExhibitor: (payload) => requestForm("/exhibitors/register", { formData: toFormData(payload) }),
   holdStall: (stallNumber, previousToken) =>
     request(`/public/stalls/${encodeURIComponent(stallNumber)}/hold`, { method: "POST", body: { previousToken: previousToken || null } }),
@@ -123,6 +124,7 @@ export const api = {
   adminResetAdminPassword: (token, id, payload) => request(`/admin/admins/${id}/password`, { method: "POST", body: payload, token }),
   adminRejectExhibitor: (token, id) => request(`/admin/exhibitors/${id}/reject`, { method: "POST", token }),
   adminReopenExhibitor: (token, id) => request(`/admin/exhibitors/${id}/reopen`, { method: "POST", token }),
+  adminSendPaymentReminder: (token, id) => request(`/admin/exhibitors/${id}/payment-reminder`, { method: "POST", token }),
   adminGetExhibitor: (token, id) => request(`/admin/exhibitors/${id}`, { token }),
   adminGetVisitor: (token, id) => request(`/admin/visitors/${id}`, { token }),
   adminGetEnquiry: (token, id) => request(`/admin/enquiries/${id}`, { token }),

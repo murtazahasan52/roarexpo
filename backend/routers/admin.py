@@ -31,7 +31,7 @@ from models.exhibitor import EDITABLE_EXHIBITOR_FIELDS, EXHIBITOR_CSV_COLUMNS, n
 from models.stall import STALL_STATUS_VALUES, new_stall_document
 from models.stall_map import map_payload, new_stall_map_document, parse_series
 from models.visitor import VISITOR_CSV_COLUMNS
-from utils.email_templates import exhibitor_approved_email_html, exhibitor_rejected_email_html, exhibitor_reopened_email_html, exhibitor_email_html
+from utils.email_templates import exhibitor_approved_email_html, exhibitor_rejected_email_html, exhibitor_reopened_email_html, exhibitor_email_html, exhibitor_payment_reminder_email_html, payment_cheque_attachments
 from utils.hashing import hash_password, verify_password
 from utils.generate_code import generate_registration_code
 from utils.invoice import build_exhibitor_invoice_pdf
@@ -350,6 +350,7 @@ async def admin_book_stall(
             to=doc["email"],
             subject=f"Stall Confirmed — {EVENT['eventName']} ({registration_code})",
             html=exhibitor_approved_email_html(doc),
+            attachments=payment_cheque_attachments(),
         )
         await db.exhibitors.update_one({"_id": doc["_id"]}, {"$set": {"emailSent": True}})
     except Exception as mail_err:  # noqa: BLE001
@@ -478,7 +479,8 @@ async def approve_exhibitor(
     if exhibitor["status"] == "confirmed":
         return {"success": True, "message": "Already confirmed", "data": serialize_doc(exhibitor)}
 
-    payment_status = "paid" if str((payload or {}).get("paymentStatus", "")).lower() == "paid" else "unpaid"
+    # Approval always keeps payment "unpaid"; payment is marked separately.
+    payment_status = "unpaid"
     approved_by = {"id": admin.get("id"), "name": admin.get("name"), "email": admin.get("email")}
     await db.exhibitors.update_one({"_id": oid}, {"$set": {
         "status": "confirmed", "paymentStatus": payment_status,
@@ -496,6 +498,7 @@ async def approve_exhibitor(
             to=exhibitor["email"],
             subject=f"Stall Confirmed — ROAR Expo ({exhibitor['registrationCode']})",
             html=exhibitor_approved_email_html(exhibitor),
+            attachments=payment_cheque_attachments(),
         )
     except Exception as mail_err:  # noqa: BLE001
         print("[admin] Failed to send approval email:", mail_err)
@@ -519,6 +522,36 @@ async def approve_exhibitor(
 
     updated = await db.exhibitors.find_one({"_id": oid})
     return {"success": True, "message": "Exhibitor approved", "data": serialize_doc(updated)}
+
+
+@router.post("/exhibitors/{exhibitor_id}/payment-reminder")
+async def send_payment_reminder(
+    exhibitor_id: str,
+    admin: AdminPayload = Depends(require_resource("exhibitors")),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(exhibitor_id)
+    if not oid:
+        raise HTTPException(status_code=400, detail="Invalid exhibitor id")
+    exhibitor = await db.exhibitors.find_one({"_id": oid})
+    if not exhibitor:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+    if not exhibitor.get("email"):
+        raise HTTPException(status_code=400, detail="This exhibitor has no email on file")
+    try:
+        await send_mail(
+            to=exhibitor["email"],
+            subject=f"Payment Reminder — {EVENT['eventName']} ({exhibitor.get('registrationCode')})",
+            html=exhibitor_payment_reminder_email_html(exhibitor),
+            attachments=payment_cheque_attachments(),
+        )
+    except Exception as mail_err:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Could not send the reminder email: {mail_err}")
+    await db.exhibitors.update_one(
+        {"_id": oid},
+        {"$set": {"paymentReminderAt": utcnow(), "paymentReminderBy": admin.get("name"), "updatedAt": utcnow()}},
+    )
+    return {"success": True, "message": f"Payment reminder sent to {exhibitor['email']}"}
 
 
 @router.post("/exhibitors/{id}/reject")

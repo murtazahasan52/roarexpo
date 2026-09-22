@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import Hero from "../components/Hero";
+import ExhibitorMarquee from "../components/ExhibitorMarquee";
 import CategoryGrid from "../components/CategoryGrid";
 import StatsBar from "../components/StatsBar";
 import OrganizerStrip from "../components/OrganizerStrip";
@@ -72,6 +73,7 @@ export default function Home() {
   return (
     <>
       <Hero />
+      <ExhibitorMarquee />
 
       <section className="section stats-section">
         <div className="container">

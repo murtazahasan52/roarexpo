@@ -215,16 +215,27 @@ export default function AdminDashboard() {
   }
 
   async function handleApprove(id) {
-    const paid = window.confirm(
-      "Approve this exhibitor's stall booking.\n\nHas the payment been received?\n\nClick OK = mark PAID\nClick Cancel = mark UNPAID"
-    );
     setDecidingId(id);
     try {
-      await api.adminApproveExhibitor(token, id, paid ? "paid" : "unpaid");
+      await api.adminApproveExhibitor(token, id, "unpaid");
       loadRows();
       loadStats();
     } catch (err) {
       alert(err.message || "Failed to approve exhibitor");
+    } finally {
+      setDecidingId(null);
+    }
+  }
+
+  async function handleSendPaymentReminder(r) {
+    if (!window.confirm(`Send a payment reminder email (with bank details & cheque) to ${r.companyName} at ${r.email}?`)) return;
+    setDecidingId(r._id);
+    try {
+      const res = await api.adminSendPaymentReminder(token, r._id);
+      alert(res.message || "Payment reminder sent");
+      loadRows();
+    } catch (err) {
+      alert(err.message || "Failed to send payment reminder");
     } finally {
       setDecidingId(null);
     }
@@ -534,6 +545,16 @@ export default function AdminDashboard() {
                                 data-testid={`payment-toggle-${r._id}`}
                               >
                                 Mark {r.paymentStatus === "paid" ? "Unpaid" : "Paid"}
+                              </button>
+                            )}
+                            {canManageExhibitors && r.status === "confirmed" && r.paymentStatus !== "paid" && r.email && (
+                              <button
+                                className="btn-mini btn-mini-amber"
+                                onClick={() => handleSendPaymentReminder(r)}
+                                disabled={decidingId === r._id}
+                                data-testid={`payment-reminder-${r._id}`}
+                              >
+                                {decidingId === r._id ? "…" : "Send Reminder"}
                               </button>
                             )}
                             <Link to={`/admin/exhibitors/${r._id}`} className="btn-mini" data-testid={`view-${r._id}`}>View</Link>

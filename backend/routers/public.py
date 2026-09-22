@@ -22,6 +22,41 @@ async def get_config():
     return {"success": True, "data": EVENT}
 
 
+# Approved-exhibitor logos for the homepage "Our Valued Exhibitors" slider,
+# ordered by package tier (Title, Diamond, Gold, Silver, Premiums, Regular,
+# Bronze, Ruby). Updates automatically as exhibitors get approved.
+_LOGO_TIER_ORDER = [
+    "title", "diamond", "gold", "silver",
+    "premium-corner", "premium", "premium-ruby", "premium-corner-15", "premium-ruby-53",
+    "regular", "bronze", "ruby",
+]
+
+
+@router.get("/exhibitor-logos")
+async def exhibitor_logos(db: AsyncIOMotorDatabase = Depends(get_db)):
+    cursor = db.exhibitors.find(
+        {"status": "confirmed", "logoUrl": {"$nin": [None, ""]}},
+        {"companyName": 1, "logoUrl": 1, "stallPackage": 1, "website": 1},
+    )
+    rows = await cursor.to_list(length=None)
+
+    def _rank(r):
+        try:
+            return _LOGO_TIER_ORDER.index(r.get("stallPackage"))
+        except ValueError:
+            return len(_LOGO_TIER_ORDER)
+
+    rows.sort(key=lambda r: (_rank(r), (r.get("companyName") or "").lower()))
+    data = [{
+        "id": str(r["_id"]),
+        "companyName": r.get("companyName", ""),
+        "logoUrl": r.get("logoUrl", ""),
+        "packageCode": r.get("stallPackage", ""),
+        "website": r.get("website", ""),
+    } for r in rows]
+    return {"success": True, "data": data}
+
+
 # All stalls in a category (?packageCode=, required) — any status, so the
 # exhibitor registration page can render its map-click picker (available =
 # selectable, held = "pending confirmation", booked = "confirmed", blocked =
