@@ -1902,6 +1902,55 @@ p {
   gap: 32px;
 }
 
+.sponsor-logos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.sponsor-logos-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sponsor-logos-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.sponsor-logo-img {
+  height: 62px;
+  width: auto;
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 2px 10px rgba(16, 28, 51, 0.12);
+}
+
+.sponsor-logo-dark {
+  background: #241f10;
+  padding: 8px 16px;
+}
+
+.sponsor-logo-light {
+  background: #ffffff;
+  padding: 8px 16px;
+  border: 1px solid var(--border-soft, #ece4d6);
+}
+
+@media (max-width: 480px) {
+  .sponsor-logo-img {
+    height: 54px;
+  }
+}
+
 /* Exhibitor list: stall cell with inline status + actions (no horizontal scroll to act) */
 .exh-stall-col { min-width: 260px; }
 .exh-stall-cell { min-width: 260px; vertical-align: top; }

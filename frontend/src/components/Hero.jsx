@@ -5,6 +5,8 @@ import { useEventConfig } from "../hooks/useEventConfig";
 import roarWordmark from "../assets/roar-wordmark.png";
 import economicAffairsLogo from "../assets/economic-affairs-logo.png";
 import dbohraLogo from "../assets/dbohra-logo.png";
+import perfectBuildcomLogo from "../assets/perfect-buildcom-logo.jpg";
+import qualityTradingLogo from "../assets/quality-trading-logo.png";
 
 export default function Hero() {
   const { config } = useEventConfig();
@@ -35,6 +37,13 @@ export default function Hero() {
           <div className="organizer-logo-item">
             <span className="organizer-logo-label">In Association With</span>
             <img src={dbohraLogo} alt="dbohra — A Global Business Network" className="organizer-logo-img organizer-logo-img-wide" />
+          </div>
+        </div>
+        <div className="sponsor-logos fade-up-3" data-testid="hero-sponsor-logos">
+          <span className="sponsor-logos-label">Title Sponsor</span>
+          <div className="sponsor-logos-row">
+            <img src={perfectBuildcomLogo} alt="Perfect Buildcom — Title Sponsor" className="sponsor-logo-img sponsor-logo-dark" data-testid="sponsor-logo-perfect" />
+            <img src={qualityTradingLogo} alt="Quality Trading Company, Nagpur — Title Sponsor" className="sponsor-logo-img sponsor-logo-light" data-testid="sponsor-logo-quality" />
           </div>
         </div>
         <p className="hero-lead fade-up-4">
