@@ -65,9 +65,10 @@ export default function Home() {
   const { config } = useEventConfig();
 
   const stats = [
-    { label: "Stalls", value: config.totalStalls },
+    { label: "Stalls", value: "150+" },
     { label: "Show Days", value: "3" },
-    { label: "Categories", value: `${config.categories?.length || 16}+` },
+    { label: "Categories", value: "16+" },
+    { label: "Visitors Expected", value: "18000+" },
   ];
 
   return (
