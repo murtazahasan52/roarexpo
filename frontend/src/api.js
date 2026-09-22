@@ -125,6 +125,11 @@ export const api = {
   adminRejectExhibitor: (token, id) => request(`/admin/exhibitors/${id}/reject`, { method: "POST", token }),
   adminReopenExhibitor: (token, id) => request(`/admin/exhibitors/${id}/reopen`, { method: "POST", token }),
   adminSendPaymentReminder: (token, id) => request(`/admin/exhibitors/${id}/payment-reminder`, { method: "POST", token }),
+  adminUploadExhibitorLogo: (token, id, file) => {
+    const fd = new FormData();
+    fd.append("logo", file);
+    return requestForm(`/admin/exhibitors/${id}/logo`, { method: "POST", formData: fd, token });
+  },
   adminGetExhibitor: (token, id) => request(`/admin/exhibitors/${id}`, { token }),
   adminGetVisitor: (token, id) => request(`/admin/visitors/${id}`, { token }),
   adminGetEnquiry: (token, id) => request(`/admin/enquiries/${id}`, { token }),

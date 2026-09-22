@@ -231,7 +231,24 @@ async def edit_exhibitor(
     return {"success": True, "message": "Exhibitor updated", "data": serialize_doc(updated)}
 
 
-@router.post("/exhibitors/book")
+@router.post("/exhibitors/{id}/logo")
+async def upload_exhibitor_logo(
+    id: str,
+    logo: UploadFile = File(...),
+    admin: AdminPayload = Depends(require_resource("exhibitors")),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = to_object_id(id)
+    if not oid:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+    exhibitor = await db.exhibitors.find_one({"_id": oid})
+    if not exhibitor:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+    filename = await save_upload(logo, "logos", EXHIBITOR_FILE_MAX_BYTES)
+    logo_url = f"/uploads/logos/{filename}"
+    await db.exhibitors.update_one({"_id": oid}, {"$set": {"logoUrl": logo_url, "updatedAt": utcnow()}})
+    updated = await db.exhibitors.find_one({"_id": oid})
+    return {"success": True, "message": "Logo uploaded", "data": serialize_doc(updated)}
 async def admin_book_stall(
     stallNumber: str = Form(""),
     stallNumbers: str = Form(""),

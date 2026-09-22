@@ -53,6 +53,8 @@ export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved,
   const [error, setError] = useState("");
   const [stalls, setStalls] = useState([]);
   const [stallsLoading, setStallsLoading] = useState(false);
+  const [logoUrl, setLogoUrl] = useState(exhibitor.logoUrl || "");
+  const [logoUploading, setLogoUploading] = useState(false);
 
   const selectedPackage = (config.stallPackages || []).find((p) => p.code === form.stallPackage);
   const hasPicker = Boolean(selectedPackage?.hasStallPicker);
@@ -92,6 +94,22 @@ export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved,
       setError(err.message || "Failed to update exhibitor");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleLogoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setLogoUploading(true);
+    try {
+      const res = await api.adminUploadExhibitorLogo(token, exhibitor._id, file);
+      setLogoUrl((res.data && res.data.logoUrl) || "");
+    } catch (err) {
+      setError(err.message || "Failed to upload logo");
+    } finally {
+      setLogoUploading(false);
+      e.target.value = "";
     }
   }
 
@@ -285,13 +303,40 @@ export default function ExhibitorEditModal({ exhibitor, token, onClose, onSaved,
               )}
             </div>
 
-            {(exhibitor.logoUrl || (exhibitor.productImages || []).length > 0) && (
+            {!readOnly && (
+              <>
+                <div className="modal-section-label">Company Logo</div>
+                <div className="field">
+                  <label>Upload / replace logo — shown in the homepage &ldquo;Our Valued Exhibitors&rdquo; slider once the exhibitor is approved</label>
+                  {logoUrl && (
+                    <div className="image-strip" style={{ marginBottom: 10 }}>
+                      <a href={fileUrl(logoUrl)} target="_blank" rel="noreferrer" className="image-thumb" title="Company logo">
+                        <img src={fileUrl(logoUrl)} alt="Company logo" />
+                        <span>Current logo</span>
+                      </a>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    disabled={logoUploading}
+                    data-testid="exhibitor-logo-upload"
+                  />
+                  {logoUploading && (
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>Uploading…</div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {(logoUrl || (exhibitor.productImages || []).length > 0) && (
               <>
                 <div className="modal-section-label">Uploaded Images</div>
                 <div className="image-strip">
-                  {exhibitor.logoUrl && (
-                    <a href={fileUrl(exhibitor.logoUrl)} target="_blank" rel="noreferrer" className="image-thumb" title="Company logo">
-                      <img src={fileUrl(exhibitor.logoUrl)} alt="Company logo" />
+                  {logoUrl && (
+                    <a href={fileUrl(logoUrl)} target="_blank" rel="noreferrer" className="image-thumb" title="Company logo">
+                      <img src={fileUrl(logoUrl)} alt="Company logo" />
                       <span>Logo</span>
                     </a>
                   )}
