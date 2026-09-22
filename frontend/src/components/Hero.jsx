@@ -15,17 +15,8 @@ export default function Hero() {
     <section className="hero">
       <div className="container hero-inner">
         <div className="hero-tagline fade-up-1">{config.eventTagline}</div>
-        <h1 className="hero-title fade-up-2">
-          <img src={roarWordmark} alt="ROAR — Rose, Orange and Tiger emblem" className="hero-logo" />
-        </h1>
-        <div className="hero-subtitle fade-up-3">
-          Business Expo &ndash; <span className="hero-city">{config.eventCity}</span>
-        </div>
-        <div className="hero-managed-by fade-up-3">
-          Managed by Dawoodi Bohra Department of Economic Affairs {config.eventCity}
-        </div>
-        <div className="organizer-logos organizer-logos-hero fade-up-3" data-testid="hero-organizer-logos">
-          <div className="organizer-logo-item">
+        <div className="hero-crest fade-up-2">
+          <div className="organizer-logo-item hero-crest-side">
             <span className="organizer-logo-label">Managed By</span>
             <img
               src={economicAffairsLogo}
@@ -33,11 +24,19 @@ export default function Hero() {
               className="organizer-logo-img organizer-logo-img-tall"
             />
           </div>
-          <div className="organizer-logo-divider" aria-hidden="true" />
-          <div className="organizer-logo-item">
+          <h1 className="hero-title">
+            <img src={roarWordmark} alt="ROAR — Rose, Orange and Tiger emblem" className="hero-logo" />
+          </h1>
+          <div className="organizer-logo-item hero-crest-side">
             <span className="organizer-logo-label">In Association With</span>
             <img src={dbohraLogo} alt="dbohra — A Global Business Network" className="organizer-logo-img organizer-logo-img-wide" />
           </div>
+        </div>
+        <div className="hero-subtitle fade-up-3">
+          Business Expo &ndash; <span className="hero-city">{config.eventCity}</span>
+        </div>
+        <div className="hero-managed-by fade-up-3">
+          Managed by Dawoodi Bohra Department of Economic Affairs {config.eventCity}
         </div>
         <div className="sponsor-logos fade-up-3" data-testid="hero-sponsor-logos">
           <span className="sponsor-logos-label">Title Sponsor</span>
