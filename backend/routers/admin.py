@@ -249,6 +249,9 @@ async def upload_exhibitor_logo(
     await db.exhibitors.update_one({"_id": oid}, {"$set": {"logoUrl": logo_url, "updatedAt": utcnow()}})
     updated = await db.exhibitors.find_one({"_id": oid})
     return {"success": True, "message": "Logo uploaded", "data": serialize_doc(updated)}
+
+
+@router.post("/exhibitors/book")
 async def admin_book_stall(
     stallNumber: str = Form(""),
     stallNumbers: str = Form(""),
