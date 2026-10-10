@@ -18,7 +18,7 @@ export const fallbackConfig = {
     whatsappNote: "WhatsApp Message Only — No Calls",
     email: "mkt@roarexpo.com",
   },
-  registrationDeadlines: { stall: "20 December 2026", visitor: "6 January 2027" },
+  registrationDeadlines: { stall: "20 November 2026", visitor: "6 January 2027" },
   stallPackages: [
     { code: "title", label: "Title Stall", icon: "🏆", rate: 1053000, size: "3m × 8m / 4m × 6m", stallCount: 2, hasStallPicker: true, inclusions: "24 sq m · Prime frontage, maximum branding exposure, premium furnishing package" },
     { code: "diamond", label: "Diamond Stall", icon: "💎", rate: 753000, size: "3m × 6m", stallCount: 2, hasStallPicker: true, inclusions: "18 sq m · Prime location, enhanced branding, premium furnishing package" },

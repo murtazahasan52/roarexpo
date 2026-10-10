@@ -32,7 +32,7 @@ EVENT = {
         "email": "mkt@roarexpo.com",
     },
     "registrationDeadlines": {
-        "stall": "20 December 2026",
+        "stall": "20 November 2026",
         "visitor": "6 January 2027",
     },
     # Stall rate card — the official ROAR Expo stall chart. Categories with
