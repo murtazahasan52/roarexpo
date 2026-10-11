@@ -2552,6 +2552,69 @@ tbody tr:last-child td {
   color: rgba(255, 255, 255, 0.72);
 }
 
+.map-tooltip .tip-price {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.map-tooltip .tip-price small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* ---------- Stalls page: price list below the layout ---------- */
+.stall-price-section {
+  margin-top: 28px;
+}
+
+.stall-price-section h3 {
+  margin: 0 0 4px;
+}
+
+.stall-price-table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.stall-price-table tbody tr:hover,
+.stall-price-table tbody tr.selected {
+  background: #fdf6e8;
+}
+
+.stall-price-table td.price {
+  font-weight: 700;
+  color: var(--gold-700);
+  white-space: nowrap;
+}
+
+.stall-price-table .avail-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #e7f6ec;
+  color: #1d7a43;
+  white-space: nowrap;
+}
+
+.stall-price-table .avail-badge.none {
+  background: #f3f0ea;
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .stall-price-table {
+    min-width: 520px;
+  }
+}
+
 .map-marker.is-hover {
   transform: translate(-50%, -50%) scale(1.15);
   z-index: 4;

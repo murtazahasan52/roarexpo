@@ -104,6 +104,7 @@ async def stall_directory(db: AsyncIOMotorDatabase = Depends(get_db)):
         data.append({
             "id": str(s["_id"]), "stallNumber": s["stallNumber"], "packageCode": s["packageCode"],
             "status": s["status"], "adminOnly": bool(s.get("adminOnly")), "mapX": s["mapX"], "mapY": s["mapY"], "owner": owner,
+            "rate": s.get("rate"),
         })
     return {"success": True, "data": data}
 

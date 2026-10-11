@@ -78,7 +78,7 @@ export function useStallTip() {
   return { hover, tip, showTip, hideTip, toggleTip, markerProps, isTouch };
 }
 
-export function StallTip({ stall, tip, packageLabel, extra }) {
+export function StallTip({ stall, tip, packageLabel, extra, price }) {
   if (!stall || !tip) return null;
   return createPortal(
     <div className={`map-tooltip is-fixed ${tip.below ? "is-below" : ""}`} style={{ left: tip.x, top: tip.y }} role="tooltip">
@@ -94,6 +94,7 @@ export function StallTip({ stall, tip, packageLabel, extra }) {
       ) : (
         <div className="tip-muted">{STATUS_LABEL[stall.status] || stall.status}</div>
       )}
+      {price && <div className="tip-price">{price}</div>}
       {extra && <div className="tip-muted" style={{ marginTop: 4 }}>{extra}</div>}
     </div>,
     document.body
