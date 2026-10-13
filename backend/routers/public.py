@@ -1,6 +1,7 @@
 """Port of routes/public.js + the public-facing half of controllers/
 stallController.js (listStallsForPackage, getStallMap)."""
 from fastapi import APIRouter, Body, HTTPException
+from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from fastapi import Depends
 
@@ -55,6 +56,14 @@ async def exhibitor_logos(db: AsyncIOMotorDatabase = Depends(get_db)):
         "website": r.get("website", ""),
     } for r in rows]
     return {"success": True, "data": data}
+
+
+# "Add to calendar" file offered by the chat bot and shareable anywhere.
+@router.get("/event.ics")
+async def event_calendar():
+    from utils.bot_features import event_ics
+    return Response(content=event_ics(), media_type="text/calendar; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="ROAR-Expo-2027.ics"'})
 
 
 # All stalls in a category (?packageCode=, required) — any status, so the

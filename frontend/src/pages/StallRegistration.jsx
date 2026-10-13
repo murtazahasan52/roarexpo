@@ -60,7 +60,31 @@ export default function StallRegistration() {
       return null;
     }
   };
-  const draftRef = useRef(loadDraft());
+  // Arriving from "Ask ROAR Anything" with a stall already reserved
+  // (/register/exhibitor?stall=G2&pkg=gold&hold=<token>&exp=<iso>&min=15):
+  // seed the draft with that stall + hold so the form opens with it selected
+  // and the countdown running, then clean the address bar.
+  const fromChat = () => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const stall = (q.get("stall") || "").trim().toUpperCase();
+      const token = q.get("hold") || "";
+      const exp = q.get("exp") || "";
+      if (!stall || !token || !exp || new Date(exp).getTime() <= Date.now()) return null;
+      const existing = loadDraft();
+      const draft = {
+        form: { ...(existing?.form || {}), stallPackage: q.get("pkg") || existing?.form?.stallPackage || "", stallNumber: stall },
+        hold: { token, stallNumber: stall, expiresAt: exp, minutes: Number(q.get("min")) || 15 },
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      window.history.replaceState({}, "", window.location.pathname);
+      return draft;
+    } catch (_) {
+      return null;
+    }
+  };
+  const draftRef = useRef(fromChat() || loadDraft());
   const restoringRef = useRef(Boolean(draftRef.current?.form?.stallPackage));
   const [form, setForm] = useState(() => (draftRef.current ? { ...initialState, ...draftRef.current.form } : initialState));
   const [draftRestored, setDraftRestored] = useState(Boolean(draftRef.current));

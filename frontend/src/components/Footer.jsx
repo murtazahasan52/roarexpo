@@ -48,6 +48,9 @@ export default function Footer() {
                 <Link to="/register/visitor">Visitor Registration</Link>
               </li>
               <li>
+                <Link to="/ask">Ask ROAR Anything</Link>
+              </li>
+              <li>
                 <Link to="/admin/login">Admin Login</Link>
               </li>
             </ul>

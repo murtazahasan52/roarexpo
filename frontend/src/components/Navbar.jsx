@@ -9,6 +9,7 @@ const links = [
   { to: "/#categories", label: "Categories" },
   { to: "/stalls", label: "Stalls" },
   { to: "/contact", label: "Contact" },
+  { to: "/ask", label: "Ask ROAR", highlight: true },
 ];
 
 export default function Navbar() {
@@ -29,7 +30,7 @@ export default function Navbar() {
               to={l.to}
               end={l.end}
               onClick={() => setOpen(false)}
-              className={({ isActive }) => (isActive ? "active" : "")}
+              className={({ isActive }) => [isActive ? "active" : "", l.highlight ? "nav-ask" : ""].join(" ").trim()}
             >
               {l.label}
             </NavLink>

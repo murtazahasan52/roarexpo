@@ -22,7 +22,7 @@ from fastapi.responses import JSONResponse, Response  # noqa: E402
 from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 from config.db import connect_db, close_db  # noqa: E402
-from routers import admin, enquiries, exhibitors, public, visitors  # noqa: E402
+from routers import admin, bot, enquiries, exhibitors, public, visitors  # noqa: E402
 from seed.final_layout import ensure_final_layout  # noqa: E402
 from seed.admin_seed import ensure_owner_admin  # noqa: E402
 from utils.storage import init_storage, get_object  # noqa: E402
@@ -66,6 +66,8 @@ async def lifespan(app: FastAPI):
         await _ensure_wa_templates(db)
     except Exception as err:  # noqa: BLE001
         print("[seed] could not seed WhatsApp templates:", err)
+    # "Ask ROAR Anything" chat sessions / logs (TTL indexes).
+    await bot.ensure_indexes(db)
     yield
     await close_db()
 
@@ -135,6 +137,7 @@ app.include_router(exhibitors.router)
 app.include_router(visitors.router)
 app.include_router(admin.router)
 app.include_router(enquiries.router)
+app.include_router(bot.router)
 
 
 # ---------- Error handling ----------

@@ -110,6 +110,9 @@ export const api = {
     request(`/public/stalls/${encodeURIComponent(stallNumber)}/hold`, { method: "POST", body: { previousToken: previousToken || null } }),
   releaseStallHold: (holdToken) => request("/public/stalls/release-hold", { method: "POST", body: { holdToken } }),
   registerVisitor: (payload) => request("/visitors/register", { method: "POST", body: payload }),
+  // "Ask ROAR Anything" chat bot — { sessionId, message, action? } → { messages, quickReplies, ... }
+  botChat: (payload) => request("/bot/chat", { method: "POST", body: payload }),
+  botInfo: () => request("/bot/info"),
   submitEnquiry: (payload) => request("/enquiries", { method: "POST", body: payload }),
   adminLogin: (payload) => request("/admin/login", { method: "POST", body: payload }),
   adminStats: (token) => request("/admin/stats", { token }),
@@ -137,6 +140,13 @@ export const api = {
   adminBookStall: (token, payload) => requestForm("/admin/exhibitors/book", { formData: toFormData(payload), token }),
   adminDeleteExhibitor: (token, id) => request(`/admin/exhibitors/${id}`, { method: "DELETE", token }),
   adminEditVisitor: (token, id, payload) => request(`/admin/visitors/${id}`, { method: "PATCH", body: payload, token }),
+  // Re-send the visitor's entry pass (ID card + invitation by e-mail, ID card on WhatsApp via the BhashSMS template)
+  adminResendVisitorPass: (token, id) => request(`/admin/visitors/${id}/resend-pass`, { method: "POST", token }),
+  // "Ask ROAR Anything" chat logs (admin Chats tab)
+  adminBotStats: (token) => request("/admin/bot/stats", { token }),
+  adminBotChats: (token, params = "") => request(`/admin/bot/chats${params}`, { token }),
+  adminBotChat: (token, sessionId) => request(`/admin/bot/chats/${encodeURIComponent(sessionId)}`, { token }),
+  adminDeleteBotChat: (token, sessionId) => request(`/admin/bot/chats/${encodeURIComponent(sessionId)}`, { method: "DELETE", token }),
   adminDeleteVisitor: (token, id) => request(`/admin/visitors/${id}`, { method: "DELETE", token }),
   adminInvoiceUrl: (id) => `${BASE_URL}/admin/exhibitors/${id}/invoice`,
   exportUrl: (kind) => `${BASE_URL}/admin/${kind}/export`,

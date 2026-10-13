@@ -10,6 +10,7 @@ import PublicLayout from "./layouts/PublicLayout";
 import Home from "./pages/Home";
 import Contact from "./pages/Contact";
 import WhyNagpur from "./pages/WhyNagpur";
+import AskRoar from "./pages/AskRoar";
 import Enquiry from "./pages/Enquiry";
 import StallDirectory from "./pages/StallDirectory";
 import StallRegistration from "./pages/StallRegistration";
@@ -20,6 +21,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminRecord from "./pages/AdminRecord";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
+import RoarBot from "./components/RoarBot";
 
 export default function App() {
   const [config, setConfig] = useState(fallbackConfig);
@@ -49,6 +51,7 @@ export default function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/why-nagpur" element={<WhyNagpur />} />
+            <Route path="/ask" element={<AskRoar />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/enquiry" element={<Enquiry />} />
             <Route path="/stalls" element={<StallDirectory />} />
@@ -76,6 +79,8 @@ export default function App() {
             }
           />
         </Routes>
+        {/* "Ask ROAR Anything" — floating assistant on every public page (hides itself on /admin) */}
+        <RoarBot />
       </AdminAuthContext.Provider>
     </EventConfigContext.Provider>
   );

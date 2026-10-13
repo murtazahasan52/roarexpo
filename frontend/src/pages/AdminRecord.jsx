@@ -157,6 +157,13 @@ export default function AdminRecord() {
     if (kind === "visitors" && canEdit && !record.checkedIn) {
       list.push(actionBtn("Check in", () => run("Check in", () => api.adminCheckIn(token, record.registrationCode)), { primary: true }));
     }
+    if (kind === "visitors" && canEdit) {
+      list.push(
+        actionBtn("Resend pass", () => run("Resend pass", () => api.adminResendVisitorPass(token, id), { confirm: `Send the entry pass again to ${record.email}${record.phone ? ` (and WhatsApp ${record.phone} if configured)` : ""}?` }), {
+          title: "E-mails the ID card + invitation again; WhatsApp too when a provider is configured",
+        })
+      );
+    }
     if (kind === "enquiries" && canEdit) {
       const handled = record.status === "handled";
       list.push(

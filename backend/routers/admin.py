@@ -4,6 +4,7 @@ controllers/stallController.js. One router, mirroring the old Express
 router's structure/comments closely so the permission model (see
 middleware/auth.py) stays easy to audit against the original.
 """
+import re
 import asyncio
 import csv
 import io
@@ -1219,6 +1220,29 @@ async def edit_visitor(
     return {"success": True, "message": "Visitor updated", "data": serialize_doc(updated)}
 
 
+@router.post("/visitors/{id}/resend-pass")
+async def resend_visitor_pass(
+    id: str, admin: AdminPayload = Depends(require_resource("visitors")), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Re-sends the visitor's entry pass (ID card + invitation PDF by e-mail,
+    ID card on WhatsApp when configured) — e.g. after fixing a typo in the
+    e-mail address, or when the visitor says it never arrived."""
+    oid = to_object_id(id)
+    visitor = await db.visitors.find_one({"_id": oid}) if oid else None
+    if not visitor:
+        raise HTTPException(status_code=404, detail="Visitor not found")
+    from utils.visitor_pass import send_visitor_pass
+    result = await send_visitor_pass(db, visitor, resend=True)
+    parts = []
+    parts.append(f"E-mail sent to {visitor.get('email')}" if result["emailSent"] else f"E-mail failed: {result['emailError'] or 'unknown error'}")
+    if result["whatsappSent"]:
+        parts.append(f"WhatsApp sent to {visitor.get('phone')}")
+    elif result["whatsappError"]:
+        parts.append(f"WhatsApp not sent ({result['whatsappError']})")
+    updated = await db.visitors.find_one({"_id": oid})
+    return {"success": True, "message": " · ".join(parts), "data": serialize_doc(updated)}
+
+
 @router.delete("/visitors/{id}")
 async def delete_visitor(
     id: str, admin: AdminPayload = Depends(require_resource("visitors")), db: AsyncIOMotorDatabase = Depends(get_db),
@@ -1253,6 +1277,72 @@ async def check_in_visitor(
     visitor["checkedIn"] = True
     visitor["checkedInAt"] = now
     return {"success": True, "message": "Checked in successfully", "data": serialize_doc(visitor)}
+
+
+# ---------- "Ask ROAR Anything" chat logs — anyone who can see enquiries, visitors or exhibitors ----------
+
+_BOT_VIEW = require_any_resource(["enquiries", "visitors", "exhibitors"])
+
+
+@router.get("/bot/stats")
+async def bot_stats(admin: AdminPayload = Depends(_BOT_VIEW), db: AsyncIOMotorDatabase = Depends(get_db)):
+    from datetime import timedelta
+    since = utcnow() - timedelta(days=1)
+    total = await db.bot_logs.count_documents({})
+    today = await db.bot_logs.count_documents({"createdAt": {"$gt": since}})
+    registered = await db.bot_logs.count_documents({"tags": "registered"})
+    stall_booked = await db.bot_logs.count_documents({"tags": "stall-booked"})
+    enquiries = await db.bot_logs.count_documents({"tags": "enquiry"})
+    callbacks = await db.bot_logs.count_documents({"tags": "callback"})
+    unanswered = await db.bot_logs.count_documents({"unanswered.0": {"$exists": True}})
+    ratings = await db.bot_feedback.find({}, {"rating": 1}).to_list(length=5000)
+    avg = round(sum(r["rating"] for r in ratings) / len(ratings), 2) if ratings else None
+    return {"success": True, "data": {"total": total, "today": today, "registered": registered, "callbacks": callbacks,
+                                      "unanswered": unanswered, "ratings": len(ratings), "avgRating": avg,
+                                      "stallBooked": stall_booked, "enquiries": enquiries}}
+
+
+@router.get("/bot/chats")
+async def bot_chats(
+    search: str = "", page: int = 1, limit: int = 25, filter: str | None = None,
+    admin: AdminPayload = Depends(_BOT_VIEW), db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    query: dict = {}
+    if search.strip():
+        rx = {"$regex": re.escape(search.strip()), "$options": "i"}
+        query["$or"] = [{"messages.t": rx}, {"sessionId": rx}, {"lastUserText": rx}]
+    if filter == "unanswered":
+        query["unanswered.0"] = {"$exists": True}
+    elif filter == "registered":
+        query["tags"] = "registered"
+    elif filter == "stall-booked":
+        query["tags"] = "stall-booked"
+    elif filter == "enquiry":
+        query["tags"] = "enquiry"
+    elif filter == "callback":
+        query["tags"] = "callback"
+    elif filter == "rated":
+        query["rating"] = {"$exists": True, "$ne": None}
+    skip = (max(page, 1) - 1) * limit
+    total = await db.bot_logs.count_documents(query)
+    projection = {"messages": {"$slice": -1}, "sessionId": 1, "createdAt": 1, "updatedAt": 1, "count": 1, "lang": 1, "tags": 1,
+                  "rating": 1, "comment": 1, "unanswered": 1, "lastUserText": 1}
+    items = await db.bot_logs.find(query, projection).sort("updatedAt", -1).skip(skip).limit(limit).to_list(length=None)
+    return {"success": True, "data": serialize_list(items), "total": total, "page": page, "limit": limit}
+
+
+@router.get("/bot/chats/{session_id}")
+async def bot_chat(session_id: str, admin: AdminPayload = Depends(_BOT_VIEW), db: AsyncIOMotorDatabase = Depends(get_db)):
+    doc = await db.bot_logs.find_one({"sessionId": session_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    return {"success": True, "data": serialize_doc(doc)}
+
+
+@router.delete("/bot/chats/{session_id}")
+async def delete_bot_chat(session_id: str, admin: AdminPayload = Depends(require_resource("enquiries")), db: AsyncIOMotorDatabase = Depends(get_db)):
+    await db.bot_logs.delete_one({"sessionId": session_id})
+    return {"success": True, "message": "Chat deleted"}
 
 
 # ---------- Enquiries (public Enquiry page) — "all" or "enquiries" ----------

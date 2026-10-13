@@ -9,6 +9,7 @@ import ScanCheckInPanel from "../components/ScanCheckInPanel";
 import EntranceQRPanel from "../components/EntranceQRPanel";
 import EnquiriesPanel from "../components/EnquiriesPanel";
 import WhatsAppPanel from "../components/WhatsAppPanel";
+import BotChatsPanel from "../components/BotChatsPanel";
 import CountUp from "../components/CountUp";
 
 async function downloadCSV(url, token, filename) {
@@ -56,6 +57,7 @@ const TAB_LABELS = {
   "entrance-qr": "Entrance QR",
   enquiries: "Enquiries",
   whatsapp: "WhatsApp",
+  chats: "Chats (Ask ROAR)",
   admins: "Admins",
 };
 
@@ -76,6 +78,7 @@ function tabsForPermissions(permissions) {
   if (hasAny(permissions, "visitors", "scanning")) tabs.push("scan");
   if (hasAny(permissions, "visitors")) tabs.push("entrance-qr");
   if (hasAny(permissions, "enquiries")) tabs.push("enquiries");
+  if (hasAny(permissions, "enquiries", "visitors", "exhibitors")) tabs.push("chats");
   if (hasAny(permissions, "all")) tabs.push("whatsapp");
   if (hasAny(permissions, "all")) tabs.push("admins");
   return tabs;
@@ -163,7 +166,7 @@ export default function AdminDashboard() {
   }, [token, logout]);
 
   const loadRows = useCallback(async () => {
-    if (!token || tab === "admins" || tab === "book" || tab === "stalls" || tab === "scan" || tab === "entrance-qr" || tab === "enquiries") return;
+    if (!token || tab === "admins" || tab === "book" || tab === "stalls" || tab === "scan" || tab === "entrance-qr" || tab === "enquiries" || tab === "chats") return;
     setLoading(true);
     try {
       const qs = `?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`;
@@ -448,6 +451,8 @@ export default function AdminDashboard() {
           <EnquiriesPanel token={token} onChange={loadStats} />
         ) : tab === "whatsapp" ? (
           <WhatsAppPanel token={token} />
+        ) : tab === "chats" ? (
+          <BotChatsPanel token={token} />
         ) : (
           <>
             <div className="toolbar">

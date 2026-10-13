@@ -192,9 +192,16 @@ export default function VisitorEditModal({ visitor, token, onClose, onSaved, rea
                     <label>WhatsApp</label>
                     <div className="field-readonly">
                       <span className={`badge ${visitor.whatsappSent ? "badge-green" : "badge-gray"}`}>{visitor.whatsappSent ? "Sent" : "—"}</span>
+                      {visitor.whatsappError && <span style={{ color: "var(--text-muted)", marginLeft: 8, fontSize: 12.5 }}>{visitor.whatsappError}</span>}
                     </div>
                   </div>
                 </div>
+                {(visitor.passResentAt || visitor.editedViaBotAt) && (
+                  <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "var(--text-muted)" }}>
+                    {visitor.passResentAt ? `Pass last re-sent ${new Date(visitor.passResentAt).toLocaleString()}. ` : ""}
+                    {visitor.editedViaBotAt ? `Details edited by the visitor via Ask ROAR Anything ${new Date(visitor.editedViaBotAt).toLocaleString()}.` : ""}
+                  </p>
+                )}
               </>
             )}
           </div>
